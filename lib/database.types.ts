@@ -37,6 +37,7 @@ export interface Database {
           description: string | null
           cover_image_url: string | null
           is_active: boolean
+          thrivecart_product_id: string | null
           created_at: string
         }
         Insert: {
@@ -46,6 +47,7 @@ export interface Database {
           description?: string | null
           cover_image_url?: string | null
           is_active?: boolean
+          thrivecart_product_id?: string | null
           created_at?: string
         }
         Update: {
@@ -55,6 +57,7 @@ export interface Database {
           description?: string | null
           cover_image_url?: string | null
           is_active?: boolean
+          thrivecart_product_id?: string | null
           created_at?: string
         }
       }
