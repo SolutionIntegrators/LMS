@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+:root {
+  /* Solution Integrators design tokens */
+  --si-burnt-orange: #A34F2B;
+  --si-sunset-yellow: #D28733;
+  --si-denim-blue: #3A4F5E;
+  --si-linen: #FCF1E8;
+  --si-linen-dark: #F0E0CC;
+  --si-white: #FFFFFF;
+  --si-dark-text: #1E1E1E;
+  --si-muted: #7A8A95;
+  --si-border: rgba(58,79,94,0.12);
+  --si-shadow-soft: 0 2px 12px rgba(58,79,94,0.08);
+  --si-shadow-card: 0 4px 24px rgba(58,79,94,0.10);
+  --si-radius: 12px;
+  --si-radius-sm: 8px;
+}
+
+@theme inline {
+  --color-si-burnt-orange: var(--si-burnt-orange);
+  --color-si-sunset-yellow: var(--si-sunset-yellow);
+  --color-si-denim-blue: var(--si-denim-blue);
+  --color-si-linen: var(--si-linen);
+  --color-si-linen-dark: var(--si-linen-dark);
+  --color-si-dark-text: var(--si-dark-text);
+  --color-si-muted: var(--si-muted);
+}
+
+body {
+  background: var(--si-linen);
+  color: var(--si-dark-text);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.6;
+}
+
+/* Prevent pure black anywhere */
+* { color: inherit; }
+
+/* Primary button */
+.btn-primary {
+  background: var(--si-burnt-orange);
+  color: var(--si-white);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.75rem;
+  border-radius: var(--si-radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.btn-primary:hover { background: #8B4226; }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Ghost button */
+.btn-ghost {
+  background: none;
+  color: var(--si-burnt-orange);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.5rem 0;
+  transition: color 0.2s;
+}
+.btn-ghost:hover { color: #8B4226; }
+
+/* Card */
+.card {
+  background: var(--si-white);
+  border-radius: var(--si-radius);
+  box-shadow: var(--si-shadow-card);
+  padding: 2rem;
+}
