@@ -115,9 +115,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
           {prevLesson ? (
             <Link href={`/lessons/${prevLesson.id}`} style={{ textDecoration: 'none', flex: 1 }}>
-              <div className="card" style={{ padding: '1rem 1.25rem', cursor: 'pointer' }}
-                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(58,79,94,0.15)')}
-                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'var(--si-shadow-card)')}>
+              <div className="card" style={{ padding: '1rem 1.25rem', cursor: 'pointer' }}>
                 <div style={{ color: 'var(--si-muted)', fontSize: '0.75rem', fontFamily: 'DM Sans, sans-serif', marginBottom: '0.25rem' }}>← Previous</div>
                 <div style={{ color: 'var(--si-dark-text)', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>{prevLesson.title}</div>
               </div>
@@ -126,9 +124,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
           {nextLesson ? (
             <Link href={`/lessons/${nextLesson.id}`} style={{ textDecoration: 'none', flex: 1 }}>
-              <div className="card" style={{ padding: '1rem 1.25rem', cursor: 'pointer', textAlign: 'right' }}
-                onMouseEnter={(e) => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(58,79,94,0.15)')}
-                onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'var(--si-shadow-card)')}>
+              <div className="card" style={{ padding: '1rem 1.25rem', cursor: 'pointer', textAlign: 'right' }}>
                 <div style={{ color: 'var(--si-muted)', fontSize: '0.75rem', fontFamily: 'DM Sans, sans-serif', marginBottom: '0.25rem' }}>Next →</div>
                 <div style={{ color: 'var(--si-dark-text)', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>{nextLesson.title}</div>
               </div>

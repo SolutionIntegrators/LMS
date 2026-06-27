@@ -16,27 +16,31 @@ export default async function DashboardPage() {
     last_login_at: new Date().toISOString(),
   }, { onConflict: 'id', ignoreDuplicates: false })
 
-  // Fetch products the user has access to
+  // Fetch product IDs the user has access to
   const { data: accessRows } = await supabase
     .from('user_product_access')
-    .select(`
-      granted_at,
-      products (
-        id, title, slug, description, cover_image_url, is_active
-      )
-    `)
+    .select('product_id')
     .eq('user_id', user.id)
 
-  const products = (accessRows ?? [])
-    .map((row) => row.products)
-    .filter(Boolean)
-    .filter((p: any) => p.is_active) as Array<{
-      id: string
-      title: string
-      slug: string
-      description: string | null
-      cover_image_url: string | null
-    }>
+  const productIds = (accessRows ?? []).map((r) => r.product_id)
+
+  const products: Array<{
+    id: string
+    title: string
+    slug: string
+    description: string | null
+    cover_image_url: string | null
+  }> = []
+
+  if (productIds.length > 0) {
+    const { data: productRows } = await supabase
+      .from('products')
+      .select('id, title, slug, description, cover_image_url')
+      .in('id', productIds)
+      .eq('is_active', true)
+      .order('title')
+    products.push(...(productRows ?? []))
+  }
 
   // Fetch profile for display
   const { data: profile } = await supabase

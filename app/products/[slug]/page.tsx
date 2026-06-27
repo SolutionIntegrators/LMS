@@ -24,6 +24,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .eq('is_active', true)
     .single()
 
+
   if (!product) notFound()
 
   const { data: access } = await supabase
@@ -140,11 +141,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                           alignItems: 'center',
                           gap: '1rem',
                           borderBottom: i < lessons.length - 1 ? '1px solid var(--si-border)' : 'none',
-                          transition: 'background 0.15s',
                           cursor: 'pointer',
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--si-linen)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       >
                         {/* Completion dot */}
                         <div style={{
