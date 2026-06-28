@@ -80,45 +80,16 @@ export default function LoginPage() {
       />
 
       <div className="card" style={{ maxWidth: 440, width: '100%', position: 'relative', zIndex: 1, padding: '2.75rem' }}>
-        {/* Logo / wordmark */}
+        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              marginBottom: '0.5rem',
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                background: 'var(--si-burnt-orange)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: '1.1rem',
-                fontFamily: 'DM Sans, sans-serif',
-              }}
-            >
-              SI
-            </div>
-            <span
-              style={{
-                fontFamily: 'DM Sans, sans-serif',
-                fontWeight: 600,
-                fontSize: '1.1rem',
-                color: 'var(--si-denim-blue)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Solution Integrators
-            </span>
-          </div>
+          <Image
+            src="/SI-primary-logo-orange.png"
+            alt="Solution Integrators"
+            width={200}
+            height={80}
+            style={{ objectFit: 'contain', margin: '0 auto 0.75rem' }}
+            priority
+          />
           <p style={{ color: 'var(--si-muted)', fontSize: '0.875rem' }}>
             Your learning portal
           </p>

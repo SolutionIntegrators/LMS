@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
@@ -33,35 +34,15 @@ export default function NavBar({ email, role }: NavBarProps) {
       }}
     >
       {/* Logo */}
-      <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-        <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 6,
-            background: 'var(--si-burnt-orange)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 700,
-            fontSize: '0.875rem',
-            fontFamily: 'DM Sans, sans-serif',
-          }}
-        >
-          SI
-        </div>
-        <span
-          style={{
-            color: 'var(--si-linen)',
-            fontFamily: 'DM Sans, sans-serif',
-            fontWeight: 600,
-            fontSize: '0.9375rem',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Solution Integrators
-        </span>
+      <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+        <Image
+          src="/SI-primary-logo-linen.png"
+          alt="Solution Integrators"
+          width={140}
+          height={56}
+          style={{ objectFit: 'contain' }}
+          priority
+        />
       </Link>
 
       {/* Right side */}
