@@ -2,13 +2,14 @@ export const runtime = 'edge'
 
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { updateUserTags } from '../content/actions'
 
 export default async function AdminUsersPage() {
   const supabase = await createServerSupabaseClient()
 
   const { data: profilesRaw } = await supabase
     .from('profiles')
-    .select('id, email, full_name, role, created_at, last_login_at')
+    .select('id, email, full_name, role, tags, created_at, last_login_at')
     .order('created_at', { ascending: false })
   const profiles = profilesRaw as any[] | null
 
@@ -33,7 +34,7 @@ export default async function AdminUsersPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--si-border)' }}>
-              {['Email', 'Name', 'Role', 'Programs', 'Last login', 'Joined'].map((h) => (
+              {['Email', 'Name', 'Role', 'Tags', 'Programs', 'Last login', 'Joined'].map((h) => (
                 <th key={h} style={{ textAlign: 'left', padding: '0.625rem 0.875rem', color: 'var(--si-muted)', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -48,8 +49,22 @@ export default async function AdminUsersPage() {
                     {p.role}
                   </span>
                 </td>
+                <td style={{ padding: '0.5rem 0.875rem' }}>
+                  <form action={updateUserTags} style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                    <input type="hidden" name="user_id" value={p.id} />
+                    <input
+                      name="tags"
+                      defaultValue={(p.tags ?? []).join(', ')}
+                      placeholder="vip, tier2…"
+                      style={{ border: '1px solid var(--si-border)', borderRadius: 4, padding: '0.25rem 0.5rem', fontSize: '0.8rem', width: 140, fontFamily: 'DM Sans, sans-serif' }}
+                    />
+                    <button type="submit" style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: 4, border: '1px solid var(--si-border)', background: 'var(--si-white)', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'DM Sans, sans-serif' }}>
+                      Save
+                    </button>
+                  </form>
+                </td>
                 <td style={{ padding: '0.75rem 0.875rem', color: 'var(--si-dark-text)' }}>
-                  {accessByUser[p.id]?.map((a) => a.title).join(', ') || <span style={{ color: 'var(--si-muted)' }}>None</span>}
+                  {accessByUser[p.id]?.map((a: any) => a.title).join(', ') || <span style={{ color: 'var(--si-muted)' }}>None</span>}
                 </td>
                 <td style={{ padding: '0.75rem 0.875rem', color: 'var(--si-muted)', whiteSpace: 'nowrap' }}>
                   {p.last_login_at ? new Date(p.last_login_at).toLocaleDateString() : '—'}

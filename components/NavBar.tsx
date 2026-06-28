@@ -36,10 +36,10 @@ export default function NavBar({ email, role }: NavBarProps) {
       {/* Logo */}
       <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
         <Image
-          src="/SI-primary-logo-linen.png"
+          src="/SI-icon-badge-linen.png"
           alt="Solution Integrators"
-          width={140}
-          height={56}
+          width={48}
+          height={48}
           style={{ objectFit: 'contain' }}
           priority
         />

@@ -2,7 +2,6 @@ export const runtime = 'edge'
 
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import ProductCard from '@/components/ProductCard'
 
@@ -10,7 +9,7 @@ export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return null // middleware handles redirect to /login
 
   // Update last_login_at and upsert profile on password login path
   await supabase.from('profiles').upsert({
@@ -45,16 +44,35 @@ export default async function DashboardPage() {
     products.push(...(productRows ?? []))
   }
 
-  // Fetch profile for display
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, email, role')
-    .eq('id', user.id)
-    .single()
+  // Fetch profile and announcement in parallel
+  const [{ data: profile }, { data: settings }] = await Promise.all([
+    supabase.from('profiles').select('full_name, email, role').eq('id', user.id).single(),
+    (supabase as any).from('site_settings').select('key, value'),
+  ])
+
+  const settingsMap = Object.fromEntries((settings ?? []).map((s: any) => [s.key, s.value]))
+  const announcementActive = settingsMap['announcement_active'] === 'true'
+  const announcementText = settingsMap['announcement_text'] ?? ''
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
-      <NavBar email={profile?.email ?? user.email ?? ''} role={profile?.role ?? 'user'} />
+      <NavBar email={(profile as any)?.email ?? user.email ?? ''} role={(profile as any)?.role ?? 'user'} />
+
+      {/* Announcement bar */}
+      {announcementActive && announcementText && (
+        <div style={{
+          background: 'var(--si-burnt-orange)',
+          color: 'white',
+          textAlign: 'center',
+          padding: '0.75rem 1.5rem',
+          fontFamily: 'DM Sans, sans-serif',
+          fontSize: '0.9375rem',
+          fontWeight: 500,
+          lineHeight: 1.5,
+        }}>
+          {announcementText}
+        </div>
+      )}
 
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '3rem 1.5rem' }}>
         <div style={{ marginBottom: '2.5rem' }}>
@@ -68,12 +86,12 @@ export default async function DashboardPage() {
               marginBottom: '0.5rem',
             }}
           >
-            {profile?.full_name ? `Welcome back, ${profile.full_name.split(' ')[0]}` : 'Welcome back'}
+            {(profile as any)?.full_name ? `Welcome back, ${(profile as any).full_name.split(' ')[0]}` : 'Welcome back'}
           </h1>
           <p style={{ color: 'var(--si-muted)', fontSize: '1rem' }}>
             {products.length === 0
-              ? 'Your purchased programs will appear here.'
-              : `You have access to ${products.length} program${products.length === 1 ? '' : 's'}.`}
+              ? 'Your goodies will appear here once you make a purchase.'
+              : `You have access to ${products.length} goodie${products.length === 1 ? '' : 's'}.`}
           </p>
         </div>
 
@@ -89,11 +107,30 @@ export default async function DashboardPage() {
           >
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📚</div>
             <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '1.25rem', color: 'var(--si-denim-blue)', marginBottom: '0.75rem' }}>
-              No programs yet
+              No goodies yet
             </h2>
             <p style={{ color: 'var(--si-muted)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
-              Once you purchase a program, it will appear here automatically. Check your email for a login link if you just bought something.
+              Once you purchase something, it will appear here automatically. Check your email for a login link if you just bought something.
             </p>
+            <a
+              href="https://www.solutionintegrators.us/shop"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                marginTop: '1.25rem',
+                padding: '0.625rem 1.5rem',
+                background: 'var(--si-burnt-orange)',
+                color: 'white',
+                borderRadius: 'var(--si-radius-sm)',
+                fontFamily: 'DM Sans, sans-serif',
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                textDecoration: 'none',
+              }}
+            >
+              Browse the Shop
+            </a>
           </div>
         ) : (
           <div

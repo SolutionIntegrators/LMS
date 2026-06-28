@@ -108,6 +108,7 @@ export type Database = {
           is_preview: boolean | null
           is_published: boolean
           module_id: string | null
+          required_tag: string | null
           sort_order: number
           title: string
         }
@@ -120,6 +121,7 @@ export type Database = {
           is_preview?: boolean | null
           is_published?: boolean
           module_id?: string | null
+          required_tag?: string | null
           sort_order: number
           title: string
         }
@@ -132,6 +134,7 @@ export type Database = {
           is_preview?: boolean | null
           is_published?: boolean
           module_id?: string | null
+          required_tag?: string | null
           sort_order?: number
           title?: string
         }
@@ -152,6 +155,8 @@ export type Database = {
           id: string
           product_id: string | null
           sort_order: number
+          thumbnail_color: string | null
+          thumbnail_url: string | null
           title: string
         }
         Insert: {
@@ -160,6 +165,8 @@ export type Database = {
           id?: string
           product_id?: string | null
           sort_order: number
+          thumbnail_color?: string | null
+          thumbnail_url?: string | null
           title: string
         }
         Update: {
@@ -168,6 +175,8 @@ export type Database = {
           id?: string
           product_id?: string | null
           sort_order?: number
+          thumbnail_color?: string | null
+          thumbnail_url?: string | null
           title?: string
         }
         Relationships: [
@@ -182,32 +191,41 @@ export type Database = {
       }
       products: {
         Row: {
+          auto_grant_tags: string[] | null
           cover_image_url: string | null
           created_at: string | null
           description: string | null
           id: string
           is_active: boolean | null
           slug: string
+          thumbnail_color: string | null
+          thumbnail_url: string | null
           thrivecart_product_id: string | null
           title: string
         }
         Insert: {
+          auto_grant_tags?: string[] | null
           cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           slug: string
+          thumbnail_color?: string | null
+          thumbnail_url?: string | null
           thrivecart_product_id?: string | null
           title: string
         }
         Update: {
+          auto_grant_tags?: string[] | null
           cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           slug?: string
+          thumbnail_color?: string | null
+          thumbnail_url?: string | null
           thrivecart_product_id?: string | null
           title?: string
         }
@@ -221,6 +239,7 @@ export type Database = {
           id: string
           last_login_at: string | null
           role: string | null
+          tags: string[] | null
         }
         Insert: {
           created_at?: string | null
@@ -229,6 +248,7 @@ export type Database = {
           id: string
           last_login_at?: string | null
           role?: string | null
+          tags?: string[] | null
         }
         Update: {
           created_at?: string | null
@@ -237,6 +257,25 @@ export type Database = {
           id?: string
           last_login_at?: string | null
           role?: string | null
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string | null
         }
         Relationships: []
       }

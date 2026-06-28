@@ -2,8 +2,9 @@ export const runtime = 'edge'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-async function hmacSign(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+async function hmacSign(key: ArrayBuffer | Uint8Array<ArrayBuffer>, data: string): Promise<ArrayBuffer> {
+  const rawKey = key instanceof Uint8Array ? key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) : key
+  const cryptoKey = await crypto.subtle.importKey('raw', rawKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   return crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data))
 }
 

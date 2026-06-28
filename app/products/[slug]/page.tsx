@@ -2,7 +2,6 @@ export const runtime = 'edge'
 
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 
@@ -11,7 +10,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return null // middleware handles redirect to /login
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -28,7 +27,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .single()
 
 
-  if (!product) notFound()
+  if (!product) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>Product not found.</div>
 
   const { data: access } = await supabase
     .from('user_product_access')
@@ -37,7 +36,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .eq('product_id', product.id)
     .single()
 
-  if (!access && profile?.role !== 'admin') notFound()
+  if (!access && profile?.role !== 'admin') return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this product.</div>
 
   // Fetch modules with lessons
   const { data: modules } = await supabase

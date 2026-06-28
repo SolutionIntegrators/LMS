@@ -2,7 +2,6 @@ export const runtime = 'edge'
 
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { redirect, notFound } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import LessonPlayer from '@/components/LessonPlayer'
 import Link from 'next/link'
@@ -12,19 +11,21 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  if (!user) return null // middleware handles redirect to /login
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('email, full_name, role')
+    .select('email, full_name, role, tags')
     .eq('id', user.id)
     .single()
+
+  const profileData = profile as any
 
   // Fetch lesson with module and product
   const { data: lesson } = await supabase
     .from('lessons')
     .select(`
-      id, title, description, content_type, content_url, sort_order, is_preview,
+      id, title, description, content_type, content_url, sort_order, required_tag,
       modules (
         id, title, product_id,
         products (id, title, slug)
@@ -33,13 +34,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     .eq('id', id)
     .single()
 
-  if (!lesson) notFound()
+  if (!lesson) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>Lesson not found.</div>
 
   const mod = lesson.modules as any
   const product = mod?.products as any
+  const lessonData = lesson as any
 
-  // Check access (preview lessons are open to all authenticated users)
-  if (!lesson.is_preview && profile?.role !== 'admin') {
+  // Check product access
+  if (profileData?.role !== 'admin') {
     const { data: access } = await supabase
       .from('user_product_access')
       .select('id')
@@ -47,7 +49,15 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
       .eq('product_id', product?.id)
       .single()
 
-    if (!access) notFound()
+    if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
+
+    // Check required tag
+    if (lessonData.required_tag) {
+      const userTags: string[] = profileData?.tags ?? []
+      if (!userTags.includes(lessonData.required_tag)) {
+        return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>This lesson is not included in your plan.</div>
+      }
+    }
   }
 
   // Check completion
@@ -80,7 +90,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
-      <NavBar email={profile?.email ?? ''} role={profile?.role ?? 'user'} />
+      <NavBar email={profileData?.email ?? ''} role={profileData?.role ?? 'user'} />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
         {/* Breadcrumb */}

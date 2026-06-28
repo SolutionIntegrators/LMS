@@ -91,7 +91,7 @@ export default function LoginPage() {
             priority
           />
           <p style={{ color: 'var(--si-muted)', fontSize: '0.875rem' }}>
-            Your learning portal
+            Welcome to the Solution Integrators Goodies Shop
           </p>
         </div>
 

@@ -2,9 +2,9 @@ export const runtime = 'edge'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { updateLesson } from '../../../actions'
 import LessonFileUpload from './LessonFileUpload'
+import LessonContentFields from './LessonContentFields'
 
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)',
@@ -44,7 +44,7 @@ export default async function LessonEditPage({
     .eq('id', lessonId)
     .single()
 
-  if (!lesson) notFound()
+  if (!lesson) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif' }}>Lesson not found.</div>
 
   const module = lesson.modules as any
   const product = module?.products as any
@@ -69,7 +69,6 @@ export default async function LessonEditPage({
 
         <form action={updateLesson} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <input type="hidden" name="id" value={lesson.id} />
-          <input type="hidden" name="productSlug" value={productSlug} />
 
           <label style={labelStyle}>
             <span style={labelText}>Title *</span>
@@ -82,39 +81,33 @@ export default async function LessonEditPage({
               style={{ ...inputStyle, resize: 'vertical' }} />
           </label>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <label style={labelStyle}>
-              <span style={labelText}>Content Type</span>
-              <select name="content_type" defaultValue={lesson.content_type ?? ''} style={inputStyle}>
-                <option value="">— Select type —</option>
-                <option value="video">Video</option>
-                <option value="pdf">PDF</option>
-                <option value="text">Text</option>
-                <option value="embed">Embed</option>
-              </select>
-            </label>
-
-            <label style={labelStyle}>
-              <span style={labelText}>Content URL</span>
-              <input name="content_url" defaultValue={lesson.content_url ?? ''} placeholder="https://…"
-                style={inputStyle} id={`content-url-${lesson.id}`} />
-            </label>
-          </div>
+          {/* Dynamic content type + URL fields */}
+          <LessonContentFields
+            defaultType={lesson.content_type}
+            defaultUrl={lesson.content_url}
+          />
 
           {/* R2 file upload */}
           <LessonFileUpload lessonId={lesson.id} currentUrl={lesson.content_url} />
 
-          <div style={{ display: 'flex', gap: '2rem', paddingTop: '0.5rem' }}>
+          {/* Access control */}
+          <div style={{ background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 600, color: 'var(--si-denim-blue)', margin: 0 }}>
+              Access Control
+            </p>
+            <label style={labelStyle}>
+              <span style={labelText}>Required tag (leave blank = all students with product access)</span>
+              <input
+                name="required_tag"
+                defaultValue={(lesson as any).required_tag ?? ''}
+                placeholder="e.g. vip, tier2, bonus"
+                style={inputStyle}
+              />
+            </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
               <input type="checkbox" name="is_published" defaultChecked={lesson.is_published}
                 style={{ width: 16, height: 16, accentColor: 'var(--si-burnt-orange)' }} />
               Published (visible to students)
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
-              <input type="checkbox" name="is_preview" defaultChecked={lesson.is_preview ?? false}
-                style={{ width: 16, height: 16, accentColor: 'var(--si-burnt-orange)' }} />
-              Free preview
             </label>
           </div>
 

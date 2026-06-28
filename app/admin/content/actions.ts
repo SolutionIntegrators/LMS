@@ -1,7 +1,5 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
@@ -29,7 +27,7 @@ export async function createProduct(formData: FormData) {
   const db = createServiceSupabaseClient()
   const { error } = await db.from('products').insert({ title, slug, description, thrivecart_product_id, is_active: false })
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/content')
+  // Page re-renders automatically
 }
 
 export async function updateProduct(formData: FormData) {
@@ -38,14 +36,16 @@ export async function updateProduct(formData: FormData) {
   const title = formData.get('title') as string
   const description = (formData.get('description') as string) || null
   const thrivecart_product_id = (formData.get('thrivecart_product_id') as string) || null
-  const is_active = formData.get('is_active') === 'true'
+  const is_active = formData.getAll('is_active').includes('true')
   const slug = toSlug(title)
+  const thumbnail_url = (formData.get('thumbnail_url') as string) || null
+  const thumbnail_color = (formData.get('thumbnail_color') as string) || null
+  const auto_grant_tags = ((formData.get('auto_grant_tags') as string) || '')
+    .split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
 
   const db = createServiceSupabaseClient()
-  const { error } = await db.from('products').update({ title, slug, description, thrivecart_product_id, is_active }).eq('id', id)
+  const { error } = await (db.from('products') as any).update({ title, slug, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags }).eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/content')
-  revalidatePath(`/admin/content/${slug}`)
 }
 
 export async function deleteProduct(formData: FormData) {
@@ -54,8 +54,6 @@ export async function deleteProduct(formData: FormData) {
   const db = createServiceSupabaseClient()
   const { error } = await db.from('products').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/content')
-  redirect('/admin/content')
 }
 
 // ── Modules ───────────────────────────────────────────────
@@ -64,7 +62,6 @@ export async function createModule(formData: FormData) {
   await requireAdmin()
   const product_id = formData.get('product_id') as string
   const title = formData.get('title') as string
-  const productSlug = formData.get('productSlug') as string
 
   const db = createServiceSupabaseClient()
   const { data: existing } = await db.from('modules').select('sort_order').eq('product_id', product_id).order('sort_order', { ascending: false }).limit(1)
@@ -72,30 +69,27 @@ export async function createModule(formData: FormData) {
 
   const { error } = await db.from('modules').insert({ product_id, title, sort_order })
   if (error) throw new Error(error.message)
-  revalidatePath(`/admin/content/${productSlug}`)
 }
 
 export async function updateModule(formData: FormData) {
   await requireAdmin()
   const id = formData.get('id') as string
   const title = formData.get('title') as string
-  const productSlug = formData.get('productSlug') as string
+  const thumbnail_url = (formData.get('thumbnail_url') as string) || null
+  const thumbnail_color = (formData.get('thumbnail_color') as string) || null
 
   const db = createServiceSupabaseClient()
-  const { error } = await db.from('modules').update({ title }).eq('id', id)
+  const { error } = await (db.from('modules') as any).update({ title, thumbnail_url, thumbnail_color }).eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath(`/admin/content/${productSlug}`)
 }
 
 export async function deleteModule(formData: FormData) {
   await requireAdmin()
   const id = formData.get('id') as string
-  const productSlug = formData.get('productSlug') as string
 
   const db = createServiceSupabaseClient()
   const { error } = await db.from('modules').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath(`/admin/content/${productSlug}`)
 }
 
 export async function reorderModule(formData: FormData) {
@@ -103,7 +97,6 @@ export async function reorderModule(formData: FormData) {
   const id = formData.get('id') as string
   const direction = formData.get('direction') as 'up' | 'down'
   const product_id = formData.get('product_id') as string
-  const productSlug = formData.get('productSlug') as string
 
   const db = createServiceSupabaseClient()
   const { data: modules } = await db.from('modules').select('id, sort_order').eq('product_id', product_id).order('sort_order')
@@ -117,16 +110,14 @@ export async function reorderModule(formData: FormData) {
   const b = modules[swapIdx]
   await db.from('modules').update({ sort_order: b.sort_order }).eq('id', a.id)
   await db.from('modules').update({ sort_order: a.sort_order }).eq('id', b.id)
-  revalidatePath(`/admin/content/${productSlug}`)
 }
 
 // ── Lessons ───────────────────────────────────────────────
 
-export async function createLesson(formData: FormData) {
+export async function createLesson(formData: FormData): Promise<{ lessonId: string }> {
   await requireAdmin()
   const module_id = formData.get('module_id') as string
   const title = formData.get('title') as string
-  const productSlug = formData.get('productSlug') as string
 
   const db = createServiceSupabaseClient()
   const { data: existing } = await db.from('lessons').select('sort_order').eq('module_id', module_id).order('sort_order', { ascending: false }).limit(1)
@@ -134,8 +125,7 @@ export async function createLesson(formData: FormData) {
 
   const { data, error } = await db.from('lessons').insert({ module_id, title, sort_order, is_published: false }).select('id').single()
   if (error) throw new Error(error.message)
-  revalidatePath(`/admin/content/${productSlug}`)
-  redirect(`/admin/content/${productSlug}/lessons/${data.id}`)
+  return { lessonId: data.id }
 }
 
 export async function updateLesson(formData: FormData) {
@@ -146,26 +136,20 @@ export async function updateLesson(formData: FormData) {
   const content_type = (formData.get('content_type') as string) || null
   const content_url = (formData.get('content_url') as string) || null
   const is_published = formData.get('is_published') === 'on'
-  const is_preview = formData.get('is_preview') === 'on'
-  const productSlug = formData.get('productSlug') as string
+  const required_tag = (formData.get('required_tag') as string) || null
 
   const db = createServiceSupabaseClient()
-  const { error } = await db.from('lessons').update({ title, description, content_type, content_url, is_published, is_preview }).eq('id', id)
+  const { error } = await (db.from('lessons') as any).update({ title, description, content_type, content_url, is_published, required_tag }).eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath(`/admin/content/${productSlug}`)
-  revalidatePath(`/admin/content/${productSlug}/lessons/${id}`)
 }
 
 export async function deleteLesson(formData: FormData) {
   await requireAdmin()
   const id = formData.get('id') as string
-  const productSlug = formData.get('productSlug') as string
 
   const db = createServiceSupabaseClient()
   const { error } = await db.from('lessons').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath(`/admin/content/${productSlug}`)
-  redirect(`/admin/content/${productSlug}`)
 }
 
 export async function reorderLesson(formData: FormData) {
@@ -173,7 +157,6 @@ export async function reorderLesson(formData: FormData) {
   const id = formData.get('id') as string
   const direction = formData.get('direction') as 'up' | 'down'
   const module_id = formData.get('module_id') as string
-  const productSlug = formData.get('productSlug') as string
 
   const db = createServiceSupabaseClient()
   const { data: lessons } = await db.from('lessons').select('id, sort_order').eq('module_id', module_id).order('sort_order')
@@ -187,5 +170,29 @@ export async function reorderLesson(formData: FormData) {
   const b = lessons[swapIdx]
   await db.from('lessons').update({ sort_order: b.sort_order }).eq('id', a.id)
   await db.from('lessons').update({ sort_order: a.sort_order }).eq('id', b.id)
-  revalidatePath(`/admin/content/${productSlug}`)
+}
+
+// ── Site Settings ─────────────────────────────────────────────────────────────
+
+export async function updateSiteSettings(formData: FormData) {
+  await requireAdmin()
+  const announcement_active = formData.get('announcement_active') === 'on' ? 'true' : 'false'
+  const announcement_text = (formData.get('announcement_text') as string) || ''
+
+  const db = createServiceSupabaseClient()
+  await (db as any).from('site_settings').upsert({ key: 'announcement_active', value: announcement_active, updated_at: new Date().toISOString() })
+  await (db as any).from('site_settings').upsert({ key: 'announcement_text', value: announcement_text, updated_at: new Date().toISOString() })
+}
+
+// ── User Tags ─────────────────────────────────────────────────────────────────
+
+export async function updateUserTags(formData: FormData) {
+  await requireAdmin()
+  const userId = formData.get('user_id') as string
+  const tagsRaw = (formData.get('tags') as string) || ''
+  const tags = tagsRaw.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+
+  const db = createServiceSupabaseClient()
+  const { error } = await (db.from('profiles') as any).update({ tags }).eq('id', userId)
+  if (error) throw new Error(error.message)
 }

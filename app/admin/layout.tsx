@@ -1,15 +1,21 @@
 export const runtime = 'edge'
 
-
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
 import NavBar from '@/components/NavBar'
 import Link from 'next/link'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+
+  // Middleware handles unauthenticated → /login, but guard here too
+  if (!user) {
+    return (
+      <html><body>
+        <script dangerouslySetInnerHTML={{ __html: `window.location.replace('/login')` }} />
+      </body></html>
+    )
+  }
 
   const { data: profileRaw } = await supabase
     .from('profiles')
@@ -18,13 +24,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .single()
   const profile = profileRaw as { email: string; role: string } | null
 
-  if (profile?.role !== 'admin') redirect('/dashboard')
+  if (!profile || profile.role !== 'admin') {
+    return (
+      <html><body>
+        <script dangerouslySetInnerHTML={{ __html: `window.location.replace('/dashboard')` }} />
+      </body></html>
+    )
+  }
 
   const navItems = [
     { href: '/admin/content', label: 'Content' },
     { href: '/admin/users', label: 'Users' },
     { href: '/admin/access', label: 'Manage Access' },
     { href: '/admin/logs', label: 'Activity Logs' },
+    { href: '/admin/settings', label: 'Settings' },
   ]
 
   return (

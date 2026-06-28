@@ -22,9 +22,9 @@ async function verifySignature(body: string, signature: string, secret: string):
 async function grantAccess(email: string, tcProductId: string, transactionRef: string, eventType: string, metadata: Record<string, unknown>) {
   const db = createServiceSupabaseClient()
 
-  const { data: product } = await db
+  const { data: product } = await (db as any)
     .from('products')
-    .select('id, title')
+    .select('id, title, auto_grant_tags')
     .eq('thrivecart_product_id', tcProductId)
     .single()
 
@@ -59,6 +59,15 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
   }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
 
   if (accessError) return { ok: false, message: `Failed to grant access: ${accessError.message}` }
+
+  // Apply auto-grant tags from the product config
+  const autoGrantTags: string[] = (product as any).auto_grant_tags ?? []
+  if (autoGrantTags.length > 0) {
+    const { data: profileData } = await (db as any).from('profiles').select('tags').eq('id', userId).single()
+    const existingTags: string[] = profileData?.tags ?? []
+    const mergedTags = [...new Set([...existingTags, ...autoGrantTags])]
+    await (db as any).from('profiles').update({ tags: mergedTags }).eq('id', userId)
+  }
 
   await db.from('activity_logs').insert({
     user_id: userId,

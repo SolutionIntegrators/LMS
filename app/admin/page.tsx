@@ -1,7 +1,6 @@
 export const runtime = 'edge'
 
-import { redirect } from 'next/navigation'
-
+// Middleware handles /admin → /admin/content redirect.
 export default function AdminPage() {
-  redirect('/admin/users')
+  return null
 }

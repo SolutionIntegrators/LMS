@@ -2,12 +2,12 @@ export const runtime = 'edge'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import {
   createModule, updateModule, deleteModule, reorderModule,
-  createLesson, deleteLesson, reorderLesson,
+  deleteLesson, reorderLesson,
   updateProduct, deleteProduct,
 } from '../actions'
+import AddLessonForm from './AddLessonForm'
 
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)',
@@ -50,7 +50,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .eq('slug', productSlug)
     .single()
 
-  if (!product) notFound()
+  if (!product) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif' }}>Product not found.</div>
 
   const { data: modules } = await supabase
     .from('modules')
@@ -77,17 +77,44 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '1rem', color: 'var(--si-denim-blue)', marginBottom: '1rem' }}>
           Product Settings
         </h2>
-        <form action={updateProduct} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
+        <form action={updateProduct} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <input type="hidden" name="id" value={product.id} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Title</span>
+              <input name="title" defaultValue={product.title} required style={inputStyle} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>ThriveCart Product ID</span>
+              <input name="thrivecart_product_id" defaultValue={product.thrivecart_product_id ?? ''} style={inputStyle} />
+            </label>
+          </div>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Title</span>
-            <input name="title" defaultValue={product.title} required style={inputStyle} />
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Description</span>
+            <textarea name="description" defaultValue={product.description ?? ''} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>ThriveCart Product ID</span>
-            <input name="thrivecart_product_id" defaultValue={product.thrivecart_product_id ?? ''} style={inputStyle} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', maxWidth: 480, alignItems: 'end' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Thumbnail URL (optional)</span>
+              <input name="thumbnail_url" defaultValue={(product as any).thumbnail_url ?? ''} placeholder="https://…/image.jpg" style={inputStyle} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Or color</span>
+              <input type="color" name="thumbnail_color" defaultValue={(product as any).thumbnail_color ?? '#2C4A7C'}
+                style={{ height: 38, width: 60, padding: '0.1rem 0.25rem', border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', cursor: 'pointer', background: 'var(--si-white)' }} />
+            </label>
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>
+              Auto-grant tags on purchase (comma-separated)
+            </span>
+            <input name="auto_grant_tags" defaultValue={((product as any).auto_grant_tags ?? []).join(', ')}
+              placeholder="e.g. proposal_bundle, vip" style={inputStyle} />
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+              Tags auto-added to buyer's profile when this ThriveCart product is purchased.
+            </span>
           </label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '0.25rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
               <input type="hidden" name="is_active" value="false" />
               <input type="checkbox" name="is_active" value="true" defaultChecked={product.is_active ?? false}
@@ -99,17 +126,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </button>
           </div>
         </form>
-        <div style={{ marginTop: '0.875rem', paddingTop: '0.875rem', borderTop: '1px solid var(--si-border)' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
-            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Description</span>
-            <textarea name="description" form="product-save" defaultValue={product.description ?? ''}
-              rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
-          </label>
-        </div>
-        <form id="product-delete" action={deleteProduct} style={{ marginTop: '1rem' }}>
+        <form action={deleteProduct} style={{ marginTop: '1rem' }}>
           <input type="hidden" name="id" value={product.id} />
-          <button type="submit" style={btnDanger}
-            onClick={(e) => { if (!confirm('Delete this product and all its modules and lessons?')) e.preventDefault() }}>
+          <button type="submit" style={btnDanger}>
             Delete product
           </button>
         </form>
@@ -133,32 +152,31 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   <input type="hidden" name="id" value={mod.id} />
                   <input type="hidden" name="direction" value="up" />
                   <input type="hidden" name="product_id" value={product.id} />
-                  <input type="hidden" name="productSlug" value={productSlug} />
                   <button type="submit" style={btnSm} disabled={modIdx === 0}>↑</button>
                 </form>
                 <form action={reorderModule}>
                   <input type="hidden" name="id" value={mod.id} />
                   <input type="hidden" name="direction" value="down" />
                   <input type="hidden" name="product_id" value={product.id} />
-                  <input type="hidden" name="productSlug" value={productSlug} />
                   <button type="submit" style={btnSm} disabled={modIdx === sortedModules.length - 1}>↓</button>
                 </form>
               </div>
 
-              {/* Rename */}
-              <form action={updateModule} style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              {/* Rename + thumbnail */}
+              <form action={updateModule} style={{ flex: 1, display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <input type="hidden" name="id" value={mod.id} />
-                <input type="hidden" name="productSlug" value={productSlug} />
-                <input name="title" defaultValue={mod.title} required style={{ ...inputStyle, flex: 1, fontSize: '0.95rem', fontWeight: 600 }} />
-                <button type="submit" style={btnSm}>Rename</button>
+                <input name="title" defaultValue={mod.title} required style={{ ...inputStyle, flex: '1 1 160px', fontSize: '0.95rem', fontWeight: 600 }} />
+                <input name="thumbnail_url" defaultValue={(mod as any).thumbnail_url ?? ''} placeholder="Thumbnail URL (optional)" style={{ ...inputStyle, flex: '1 1 180px', fontSize: '0.8rem' }} />
+                <input type="color" name="thumbnail_color" defaultValue={(mod as any).thumbnail_color ?? '#2C4A7C'}
+                  title="Thumbnail color"
+                  style={{ height: 34, width: 44, padding: '0.1rem 0.2rem', border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', cursor: 'pointer' }} />
+                <button type="submit" style={btnSm}>Save</button>
               </form>
 
               {/* Delete */}
               <form action={deleteModule}>
                 <input type="hidden" name="id" value={mod.id} />
-                <input type="hidden" name="productSlug" value={productSlug} />
-                <button type="submit" style={btnDanger}
-                  onClick={(e) => { if (!confirm('Delete this module and all its lessons?')) e.preventDefault() }}>
+                <button type="submit" style={btnDanger}>
                   Delete
                 </button>
               </form>
@@ -180,15 +198,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                         <input type="hidden" name="id" value={lesson.id} />
                         <input type="hidden" name="direction" value="up" />
                         <input type="hidden" name="module_id" value={mod.id} />
-                        <input type="hidden" name="productSlug" value={productSlug} />
-                        <button type="submit" style={{ ...btnSm, padding: '0.125rem 0.4rem' }} disabled={lessonIdx === 0}>↑</button>
+                              <button type="submit" style={{ ...btnSm, padding: '0.125rem 0.4rem' }} disabled={lessonIdx === 0}>↑</button>
                       </form>
                       <form action={reorderLesson}>
                         <input type="hidden" name="id" value={lesson.id} />
                         <input type="hidden" name="direction" value="down" />
                         <input type="hidden" name="module_id" value={mod.id} />
-                        <input type="hidden" name="productSlug" value={productSlug} />
-                        <button type="submit" style={{ ...btnSm, padding: '0.125rem 0.4rem' }} disabled={lessonIdx === mod.lessons.length - 1}>↓</button>
+                              <button type="submit" style={{ ...btnSm, padding: '0.125rem 0.4rem' }} disabled={lessonIdx === mod.lessons.length - 1}>↓</button>
                       </form>
                     </div>
 
@@ -216,9 +232,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
                     <form action={deleteLesson}>
                       <input type="hidden" name="id" value={lesson.id} />
-                      <input type="hidden" name="productSlug" value={productSlug} />
-                      <button type="submit" style={btnDanger}
-                        onClick={(e) => { if (!confirm('Delete this lesson?')) e.preventDefault() }}>
+                          <button type="submit" style={btnDanger}>
                         ✕
                       </button>
                     </form>
@@ -227,14 +241,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               </div>
 
               {/* Add lesson */}
-              <form action={createLesson} style={{ display: 'flex', gap: '0.5rem' }}>
-                <input type="hidden" name="module_id" value={mod.id} />
-                <input type="hidden" name="productSlug" value={productSlug} />
-                <input name="title" required placeholder="New lesson title" style={{ ...inputStyle, fontSize: '0.85rem', flex: 1 }} />
-                <button type="submit" style={{ ...btnSm, background: 'var(--si-denim-blue)', color: 'white', border: 'none' }}>
-                  + Add Lesson
-                </button>
-              </form>
+              <AddLessonForm moduleId={mod.id} productSlug={productSlug} />
             </div>
           </div>
         ))}
@@ -247,7 +254,6 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         </h3>
         <form action={createModule} style={{ display: 'flex', gap: '0.75rem' }}>
           <input type="hidden" name="product_id" value={product.id} />
-          <input type="hidden" name="productSlug" value={productSlug} />
           <input name="title" required placeholder="Module title" style={{ ...inputStyle, flex: 1 }} />
           <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>+ Add Module</button>
         </form>
