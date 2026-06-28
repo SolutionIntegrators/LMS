@@ -2,6 +2,10 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
+export async function GET() {
+  return new Response('ThriveCart webhook endpoint active', { status: 200 })
+}
+
 async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     'raw',
