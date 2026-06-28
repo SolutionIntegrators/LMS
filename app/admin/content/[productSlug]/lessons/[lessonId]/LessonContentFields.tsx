@@ -29,7 +29,7 @@ const TYPES = [
   { value: 'download', label: 'Download' },
 ]
 
-const fieldConfig: Record<string, { label: string; placeholder: string; help: string; isTextarea?: boolean; hidden?: boolean }> = {
+const fieldConfig: Record<string, { label: string; placeholder: string; help: string; hidden?: boolean }> = {
   video: {
     label: 'Embed URL',
     placeholder: 'https://www.loom.com/embed/… or https://player.vimeo.com/video/…',
@@ -66,7 +66,11 @@ export default function LessonContentFields({
   defaultUrl: string | null
 }) {
   const [type, setType] = useState(defaultType ?? '')
+  // Controlled so edits survive type switches without being lost
+  const [url, setUrl] = useState(defaultUrl ?? '')
+
   const config = fieldConfig[type]
+  const showUrlField = config && !config.hidden
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -86,14 +90,15 @@ export default function LessonContentFields({
         </select>
       </label>
 
-      {config && !config.hidden && (
+      {showUrlField && (
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>
             {config.label}
           </span>
           <input
             name="content_url"
-            defaultValue={defaultUrl ?? ''}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
             placeholder={config.placeholder}
             style={inputStyle}
           />
@@ -101,13 +106,9 @@ export default function LessonContentFields({
         </label>
       )}
 
-      {/* Hidden field so content_url is always submitted even for text type */}
-      {config?.hidden && (
-        <input type="hidden" name="content_url" value="" />
-      )}
-
-      {!config && (
-        <input type="hidden" name="content_url" defaultValue={defaultUrl ?? ''} />
+      {/* Always submit content_url — empty for text/no-type */}
+      {!showUrlField && (
+        <input type="hidden" name="content_url" value={type === 'text' ? '' : url} />
       )}
     </div>
   )

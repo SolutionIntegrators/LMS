@@ -109,6 +109,11 @@ export default async function LessonEditPage({
                 style={{ width: 16, height: 16, accentColor: 'var(--si-burnt-orange)' }} />
               Published (visible to students)
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
+              <input type="checkbox" name="is_preview" defaultChecked={(lesson as any).is_preview ?? false}
+                style={{ width: 16, height: 16, accentColor: 'var(--si-burnt-orange)' }} />
+              Free preview (anyone logged in can watch without purchasing)
+            </label>
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--si-border)' }}>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { createLesson } from '../actions'
 
 const inputStyle: React.CSSProperties = {
@@ -29,24 +29,37 @@ const btnSm: React.CSSProperties = {
 export default function AddLessonForm({ moduleId, productSlug }: { moduleId: string; productSlug: string }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    setError(null)
     const form = e.currentTarget
     const formData = new FormData(form)
     startTransition(async () => {
-      const { lessonId } = await createLesson(formData)
-      router.push(`/admin/content/${productSlug}/lessons/${lessonId}`)
+      try {
+        const { lessonId } = await createLesson(formData)
+        router.push(`/admin/content/${productSlug}/lessons/${lessonId}`)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create lesson')
+      }
     })
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
-      <input type="hidden" name="module_id" value={moduleId} />
-      <input name="title" required placeholder="New lesson title" style={{ ...inputStyle, fontSize: '0.85rem', flex: 1 }} disabled={pending} />
-      <button type="submit" disabled={pending} style={{ ...btnSm, background: 'var(--si-denim-blue)', color: 'white', border: 'none' }}>
-        {pending ? 'Adding…' : '+ Add Lesson'}
-      </button>
-    </form>
+    <div>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem' }}>
+        <input type="hidden" name="module_id" value={moduleId} />
+        <input name="title" required placeholder="New lesson title" style={{ ...inputStyle, fontSize: '0.85rem', flex: 1 }} disabled={pending} />
+        <button type="submit" disabled={pending} style={{ ...btnSm, background: 'var(--si-denim-blue)', color: 'white', border: 'none' }}>
+          {pending ? 'Adding…' : '+ Add Lesson'}
+        </button>
+      </form>
+      {error && (
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: '#8B2A1A', marginTop: '0.375rem' }}>
+          Error: {error}
+        </p>
+      )}
+    </div>
   )
 }

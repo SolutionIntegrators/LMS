@@ -1,5 +1,6 @@
 'use server'
 
+import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 async function getAdminClient() {
@@ -51,6 +52,7 @@ export async function deleteProduct(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await db.from('products').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  redirect('/admin/content')
 }
 
 // ── Modules ───────────────────────────────────────────────
@@ -127,10 +129,11 @@ export async function updateLesson(formData: FormData) {
   const content_type = (formData.get('content_type') as string) || null
   const content_url = (formData.get('content_url') as string) || null
   const is_published = formData.get('is_published') === 'on'
+  const is_preview = formData.get('is_preview') === 'on'
   const required_tag = (formData.get('required_tag') as string) || null
 
   const { error } = await (db.from('lessons') as any).update({
-    title, description, content_type, content_url, is_published, required_tag,
+    title, description, content_type, content_url, is_published, is_preview, required_tag,
   }).eq('id', id)
   if (error) throw new Error(error.message)
 }
@@ -168,8 +171,11 @@ export async function updateSiteSettings(formData: FormData) {
   const announcement_active = formData.get('announcement_active') === 'on' ? 'true' : 'false'
   const announcement_text = (formData.get('announcement_text') as string) || ''
 
-  await (db as any).from('site_settings').upsert({ key: 'announcement_active', value: announcement_active, updated_at: new Date().toISOString() })
-  await (db as any).from('site_settings').upsert({ key: 'announcement_text', value: announcement_text, updated_at: new Date().toISOString() })
+  const now = new Date().toISOString()
+  await (db as any).from('site_settings').upsert([
+    { key: 'announcement_active', value: announcement_active, updated_at: now },
+    { key: 'announcement_text', value: announcement_text, updated_at: now },
+  ])
 }
 
 // ── User Tags ─────────────────────────────────────────────────────────────────

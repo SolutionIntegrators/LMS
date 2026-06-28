@@ -131,7 +131,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         </form>
         <form action={deleteProduct} style={{ marginTop: '1rem' }}>
           <input type="hidden" name="id" value={product.id} />
-          <button type="submit" style={btnDanger}>
+          <button type="submit" style={btnDanger}
+            onClick={(e) => { if (!confirm('Delete this product and all its modules and lessons? This cannot be undone.')) e.preventDefault() }}>
             Delete product
           </button>
         </form>
@@ -179,7 +180,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {/* Delete */}
               <form action={deleteModule}>
                 <input type="hidden" name="id" value={mod.id} />
-                <button type="submit" style={btnDanger}>
+                <button type="submit" style={btnDanger}
+                  onClick={(e) => { if (!confirm('Delete this module and all its lessons? This cannot be undone.')) e.preventDefault() }}>
                   Delete
                 </button>
               </form>
@@ -235,7 +237,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
                     <form action={deleteLesson}>
                       <input type="hidden" name="id" value={lesson.id} />
-                          <button type="submit" style={btnDanger}>
+                      <button type="submit" style={btnDanger}
+                        onClick={(e) => { if (!confirm('Delete this lesson? This cannot be undone.')) e.preventDefault() }}>
                         ✕
                       </button>
                     </form>

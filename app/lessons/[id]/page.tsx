@@ -25,7 +25,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   const { data: lesson } = await supabase
     .from('lessons')
     .select(`
-      id, title, description, content_type, content_url, sort_order, required_tag,
+      id, title, description, content_type, content_url, sort_order, required_tag, is_preview,
       modules (
         id, title, product_id,
         products (id, title, slug)
@@ -40,13 +40,13 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
   const product = mod?.products as any
   const lessonData = lesson as any
 
-  // Check product access
-  if (profileData?.role !== 'admin') {
+  // Check product access — is_preview lessons bypass the purchase check
+  if (profileData?.role !== 'admin' && !lessonData.is_preview) {
     const { data: access } = await supabase
       .from('user_product_access')
       .select('id')
       .eq('user_id', user.id)
-      .eq('product_id', product?.id)
+      .eq('product_id', product?.id ?? '')
       .single()
 
     if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
