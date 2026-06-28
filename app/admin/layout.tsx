@@ -21,9 +21,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (profile?.role !== 'admin') redirect('/dashboard')
 
   const navItems = [
+    { href: '/admin/content', label: 'Content' },
     { href: '/admin/users', label: 'Users' },
-    { href: '/admin/logs', label: 'Activity Logs' },
     { href: '/admin/access', label: 'Manage Access' },
+    { href: '/admin/logs', label: 'Activity Logs' },
   ]
 
   return (
