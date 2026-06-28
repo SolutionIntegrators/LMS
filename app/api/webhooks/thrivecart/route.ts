@@ -2,8 +2,6 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
-// ThriveCart sends a HMAC-SHA256 signature in the X-Thrivecart-Signature header.
-// The signature is computed over the raw request body using the webhook secret.
 async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -17,60 +15,9 @@ async function verifySignature(body: string, signature: string, secret: string):
   return expected === signature.toLowerCase()
 }
 
-export async function POST(request: Request) {
-  const secret = process.env.THRIVECART_WEBHOOK_SECRET
-  if (!secret) {
-    console.error('THRIVECART_WEBHOOK_SECRET not set')
-    return new Response('Webhook secret not configured', { status: 500 })
-  }
-
-  const rawBody = await request.text()
-
-  // Verify signature if ThriveCart sends one
-  const signature = request.headers.get('x-thrivecart-signature')
-  if (signature) {
-    const valid = await verifySignature(rawBody, signature, secret)
-    if (!valid) {
-      console.error('ThriveCart webhook signature mismatch')
-      return new Response('Invalid signature', { status: 401 })
-    }
-  }
-
-  let payload: any
-  try {
-    payload = JSON.parse(rawBody)
-  } catch {
-    return new Response('Invalid JSON', { status: 400 })
-  }
-
-  // ThriveCart event type
-  const event = payload.event ?? payload.thrivecart?.event
-  if (!event) return new Response('No event type', { status: 400 })
-
-  // Only handle purchase/order events
-  const purchaseEvents = ['order.success', 'purchase.complete', 'order.complete', 'subscription.new']
-  if (!purchaseEvents.includes(event)) {
-    return new Response(`Event ${event} ignored`, { status: 200 })
-  }
-
-  // Extract customer info
-  const customer = payload.customer ?? payload.thrivecart?.customer ?? {}
-  const email: string | undefined = customer.email ?? payload.email
-  const firstName: string | undefined = customer.firstname ?? customer.first_name ?? payload.firstname
-  const lastName: string | undefined = customer.lastname ?? customer.last_name ?? payload.lastname
-
-  // Extract ThriveCart product ID
-  const tcProductId: string | undefined =
-    String(payload.product?.id ?? payload.thrivecart?.product?.id ?? payload.product_id ?? '')
-
-  if (!email || !tcProductId) {
-    console.error('Missing email or product_id in ThriveCart payload', { email, tcProductId })
-    return new Response('Missing email or product_id', { status: 400 })
-  }
-
+async function grantAccess(email: string, tcProductId: string, transactionRef: string, eventType: string, metadata: Record<string, unknown>) {
   const db = createServiceSupabaseClient()
 
-  // Look up the product by ThriveCart product ID
   const { data: product } = await db
     .from('products')
     .select('id, title')
@@ -78,78 +25,101 @@ export async function POST(request: Request) {
     .single()
 
   if (!product) {
-    console.warn(`No product found for ThriveCart product ID: ${tcProductId}`)
-    // Return 200 so ThriveCart doesn't retry — this product may not be an LMS product
-    return new Response(`No LMS product mapped for TC product ${tcProductId}`, { status: 200 })
+    console.warn(`No LMS product mapped for ThriveCart product ID: ${tcProductId}`)
+    return { ok: true, message: `No LMS product mapped for TC product ${tcProductId}` }
   }
 
-  // Find or create the user profile
-  // First check if a user with this email exists in auth.users via profiles table
-  const { data: existingProfile } = await db
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .single()
-
+  const { data: existingProfile } = await db.from('profiles').select('id').eq('email', email).single()
   let userId: string
 
   if (existingProfile) {
     userId = existingProfile.id
   } else {
-    // Create an auth user with a magic link invite
-    const { data: newUser, error: createError } = await db.auth.admin.createUser({
+    const nameParts = ((metadata.full_name as string) ?? '').split(' ')
+    const { data: newUser, error } = await db.auth.admin.createUser({
       email,
       email_confirm: true,
-      user_metadata: {
-        full_name: [firstName, lastName].filter(Boolean).join(' ') || undefined,
-      },
+      user_metadata: { full_name: metadata.full_name ?? undefined },
     })
-
-    if (createError || !newUser.user) {
-      console.error('Failed to create auth user:', createError)
-      return new Response('Failed to create user', { status: 500 })
-    }
-
+    if (error || !newUser.user) return { ok: false, message: `Failed to create user: ${error?.message}` }
     userId = newUser.user.id
-
-    // Upsert profile
-    await db.from('profiles').upsert({
-      id: userId,
-      email,
-      full_name: [firstName, lastName].filter(Boolean).join(' ') || null,
-      role: 'user',
-    }, { onConflict: 'id' })
+    await db.from('profiles').upsert({ id: userId, email, full_name: (metadata.full_name as string) || null, role: 'user' }, { onConflict: 'id' })
   }
-
-  // Grant product access (upsert to avoid duplicates)
-  const transactionRef = String(payload.order_id ?? payload.thrivecart?.order?.id ?? payload.transaction_id ?? '')
 
   const { error: accessError } = await db.from('user_product_access').upsert({
     user_id: userId,
     product_id: product.id,
-    granted_by: 'thrivecart_webhook',
+    granted_by: metadata.source as string ?? 'webhook',
     transaction_ref: transactionRef || null,
     granted_at: new Date().toISOString(),
   }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
 
-  if (accessError) {
-    console.error('Failed to grant access:', accessError)
-    return new Response('Failed to grant access', { status: 500 })
-  }
+  if (accessError) return { ok: false, message: `Failed to grant access: ${accessError.message}` }
 
-  // Log the event
   await db.from('activity_logs').insert({
     user_id: userId,
     product_id: product.id,
-    event_type: 'purchase',
-    metadata: {
-      tc_event: event,
-      tc_product_id: tcProductId,
-      transaction_ref: transactionRef,
-      email,
-    },
+    event_type: eventType,
+    metadata: { ...metadata, email, tc_product_id: tcProductId, transaction_ref: transactionRef },
   })
 
   console.log(`Access granted: ${email} → ${product.title}`)
-  return new Response('OK', { status: 200 })
+  return { ok: true, message: `Access granted: ${email} → ${product.title}` }
+}
+
+export async function POST(request: Request) {
+  const rawBody = await request.text()
+
+  // Handle ThriveCart test ping (empty body or ping event) — always return 200
+  if (!rawBody || rawBody === '{}') return new Response('OK', { status: 200 })
+
+  // Verify signature if secret is configured and header is present
+  const secret = process.env.THRIVECART_WEBHOOK_SECRET
+  const signature = request.headers.get('x-thrivecart-signature')
+  if (secret && signature) {
+    const valid = await verifySignature(rawBody, signature, secret)
+    if (!valid) return new Response('Invalid signature', { status: 401 })
+  }
+
+  let payload: any
+  try {
+    payload = JSON.parse(rawBody)
+  } catch {
+    // ThriveCart occasionally sends form-encoded data
+    try {
+      const params = new URLSearchParams(rawBody)
+      payload = Object.fromEntries(params.entries())
+    } catch {
+      return new Response('Unparseable body', { status: 400 })
+    }
+  }
+
+  const event: string = payload.event ?? payload.thrivecart?.event ?? 'unknown'
+
+  // Ignore non-purchase events (ping, etc.)
+  const purchaseEvents = ['order.success', 'purchase.complete', 'order.complete', 'subscription.new', 'order_success', 'purchase_complete']
+  if (!purchaseEvents.includes(event)) {
+    return new Response(`Event "${event}" acknowledged`, { status: 200 })
+  }
+
+  const customer = payload.customer ?? payload.thrivecart?.customer ?? {}
+  const email: string = customer.email ?? payload.email ?? ''
+  const firstName: string = customer.firstname ?? customer.first_name ?? payload.firstname ?? ''
+  const lastName: string = customer.lastname ?? customer.last_name ?? payload.lastname ?? ''
+  const tcProductId: string = String(payload.product?.id ?? payload.thrivecart?.product?.id ?? payload.product_id ?? '')
+  const transactionRef: string = String(payload.order_id ?? payload.thrivecart?.order?.id ?? payload.transaction_id ?? '')
+
+  if (!email || !tcProductId) {
+    return new Response(JSON.stringify({ error: 'Missing email or product_id', received: { email, tcProductId } }), {
+      status: 400, headers: { 'Content-Type': 'application/json' }
+    })
+  }
+
+  const result = await grantAccess(email, tcProductId, transactionRef, 'purchase', {
+    source: 'thrivecart',
+    tc_event: event,
+    full_name: [firstName, lastName].filter(Boolean).join(' ') || undefined,
+  })
+
+  return new Response(result.message, { status: result.ok ? 200 : 500 })
 }
