@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import NavBar from '@/components/NavBar'
+import ProductCard from '@/components/ProductCard'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -22,7 +22,7 @@ export default async function DashboardPage() {
     .select('product_id')
     .eq('user_id', user.id)
 
-  const productIds = (accessRows ?? []).map((r) => r.product_id)
+  const productIds = (accessRows ?? []).map((r) => r.product_id).filter((id): id is string => id !== null)
 
   const products: Array<{
     id: string
@@ -103,6 +103,7 @@ export default async function DashboardPage() {
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
+
           </div>
         )}
       </main>
@@ -110,101 +111,3 @@ export default async function DashboardPage() {
   )
 }
 
-function ProductCard({ product }: { product: { id: string; title: string; slug: string; description: string | null; cover_image_url: string | null } }) {
-  return (
-    <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none' }}>
-      <div
-        className="card"
-        style={{
-          padding: 0,
-          overflow: 'hidden',
-          cursor: 'pointer',
-          transition: 'transform 0.2s, box-shadow 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'
-          ;(e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(58,79,94,0.15)'
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'
-          ;(e.currentTarget as HTMLElement).style.boxShadow = 'var(--si-shadow-card)'
-        }}
-      >
-        {/* Cover image or placeholder */}
-        <div
-          style={{
-            height: 160,
-            background: product.cover_image_url
-              ? `url(${product.cover_image_url}) center/cover`
-              : 'linear-gradient(135deg, var(--si-denim-blue) 0%, #2C3D4A 100%)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            padding: '1rem',
-          }}
-        >
-          <span
-            style={{
-              background: 'var(--si-burnt-orange)',
-              color: 'white',
-              fontSize: '0.75rem',
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              padding: '0.25rem 0.625rem',
-              borderRadius: 4,
-            }}
-          >
-            Program
-          </span>
-        </div>
-
-        <div style={{ padding: '1.5rem' }}>
-          <h2
-            style={{
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: 600,
-              fontSize: '1.125rem',
-              color: 'var(--si-dark-text)',
-              marginBottom: '0.5rem',
-              lineHeight: 1.3,
-            }}
-          >
-            {product.title}
-          </h2>
-          {product.description && (
-            <p
-              style={{
-                color: 'var(--si-muted)',
-                fontSize: '0.875rem',
-                lineHeight: 1.6,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {product.description}
-            </p>
-          )}
-          <div
-            style={{
-              marginTop: '1.25rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'var(--si-burnt-orange)',
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-            }}
-          >
-            Open program →
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
-}

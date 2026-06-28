@@ -27,6 +27,6 @@ export async function logActivity(
     product_id: options.productId ?? null,
     module_id: options.moduleId ?? null,
     lesson_id: options.lessonId ?? null,
-    metadata: options.metadata ?? null,
+    metadata: (options.metadata ?? null) as import('./database.types').Json | null,
   })
 }

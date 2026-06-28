@@ -3,14 +3,16 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 export default async function AdminUsersPage() {
   const supabase = await createServerSupabaseClient()
 
-  const { data: profiles } = await supabase
+  const { data: profilesRaw } = await supabase
     .from('profiles')
     .select('id, email, full_name, role, created_at, last_login_at')
     .order('created_at', { ascending: false })
+  const profiles = profilesRaw as any[] | null
 
-  const { data: accessRows } = await supabase
+  const { data: accessRowsRaw } = await supabase
     .from('user_product_access')
     .select('user_id, granted_at, products(title)')
+  const accessRows = accessRowsRaw as any[] | null
 
   const accessByUser = (accessRows ?? []).reduce<Record<string, Array<{ title: string; granted_at: string }>>>((acc, row) => {
     if (!acc[row.user_id]) acc[row.user_id] = []

@@ -10,11 +10,12 @@ export default async function AdminAccessPage() {
     .eq('is_active', true)
     .order('title')
 
-  const { data: accessRows } = await supabase
+  const { data: accessRowsRaw } = await supabase
     .from('user_product_access')
     .select('id, granted_at, granted_by, transaction_ref, profiles(email), products(title, slug)')
     .order('granted_at', { ascending: false })
     .limit(100)
+  const accessRows = accessRowsRaw as any[] | null
 
   return (
     <div>

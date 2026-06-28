@@ -17,7 +17,8 @@ export default async function AdminLogsPage({
   if (eventFilter) query = query.eq('event_type', eventFilter)
   if (dateFilter) query = query.gte('created_at', `${dateFilter}T00:00:00`)
 
-  const { data: logs } = await query
+  const { data: logsRaw } = await query
+  const logs = logsRaw as any[] | null
 
   const filtered = userFilter
     ? (logs ?? []).filter((l) => (l.profiles as any)?.email?.toLowerCase().includes(userFilter.toLowerCase()))
