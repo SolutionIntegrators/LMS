@@ -37,14 +37,15 @@ export async function updateProduct(formData: FormData) {
   const description = (formData.get('description') as string) || null
   const thrivecart_product_id = (formData.get('thrivecart_product_id') as string) || null
   const is_active = formData.getAll('is_active').includes('true')
-  const slug = toSlug(title)
+  // Slug is NOT recalculated — it's the product URL and changing it would break bookmarks.
+  // If slug needs to change, handle it explicitly via a separate field.
   const thumbnail_url = (formData.get('thumbnail_url') as string) || null
   const thumbnail_color = (formData.get('thumbnail_color') as string) || null
   const auto_grant_tags = ((formData.get('auto_grant_tags') as string) || '')
     .split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
 
   const db = createServiceSupabaseClient()
-  const { error } = await (db.from('products') as any).update({ title, slug, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags }).eq('id', id)
+  const { error } = await (db.from('products') as any).update({ title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags }).eq('id', id)
   if (error) throw new Error(error.message)
 }
 

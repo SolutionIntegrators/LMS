@@ -93,6 +93,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Description</span>
             <textarea name="description" defaultValue={product.description ?? ''} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
           </label>
+          <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--si-muted)' }}>
+            Product URL: <code style={{ background: 'var(--si-linen)', padding: '0.15rem 0.4rem', borderRadius: 3, fontSize: '0.8rem' }}>/products/{product.slug}</code>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', maxWidth: 480, alignItems: 'end' }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
               <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Thumbnail URL (optional)</span>
