@@ -1,3 +1,5 @@
+export const runtime = 'edge'
+
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export default async function AdminUsersPage() {

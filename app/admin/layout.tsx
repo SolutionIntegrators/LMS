@@ -1,3 +1,5 @@
+export const runtime = 'edge'
+
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import NavBar from '@/components/NavBar'
