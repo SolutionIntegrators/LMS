@@ -9,6 +9,7 @@ import {
 import AddLessonForm from './AddLessonForm'
 import ProductSettingsForm from './ProductSettingsForm'
 import DeleteProductButton from './DeleteProductButton'
+import ConfirmSubmitButton from './ConfirmSubmitButton'
 
 const btnSm: React.CSSProperties = {
   fontFamily: 'DM Sans, sans-serif',
@@ -126,10 +127,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               {/* Delete */}
               <form action={deleteModule}>
                 <input type="hidden" name="id" value={mod.id} />
-                <button type="submit" style={btnDanger}
-                  onClick={(e) => { if (!confirm('Delete this module and all its lessons? This cannot be undone.')) e.preventDefault() }}>
+                <ConfirmSubmitButton message="Delete this module and all its lessons? This cannot be undone." style={btnDanger}>
                   Delete
-                </button>
+                </ConfirmSubmitButton>
               </form>
             </div>
 
@@ -183,10 +183,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
                     <form action={deleteLesson}>
                       <input type="hidden" name="id" value={lesson.id} />
-                      <button type="submit" style={btnDanger}
-                        onClick={(e) => { if (!confirm('Delete this lesson? This cannot be undone.')) e.preventDefault() }}>
+                      <ConfirmSubmitButton message="Delete this lesson? This cannot be undone." style={btnDanger}>
                         ✕
-                      </button>
+                      </ConfirmSubmitButton>
                     </form>
                   </div>
                 ))}
