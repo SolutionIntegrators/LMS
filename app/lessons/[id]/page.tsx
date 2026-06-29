@@ -126,7 +126,7 @@ export default async function LessonPage({
           <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: 'clamp(1.5rem, 3vw, 2rem)', color: 'var(--si-dark-text)', marginBottom: '0.5rem', lineHeight: 1.3 }}>
             {lesson.title}
           </h1>
-          {lesson.description && (
+          {lesson.description && lesson.content_type !== 'video' && (
             <p style={{ color: 'var(--si-muted)', fontSize: '0.9375rem', lineHeight: 1.7, marginBottom: '1.5rem' }}>
               {lesson.description}
             </p>
@@ -140,6 +140,7 @@ export default async function LessonPage({
             isCompleted={!!completion}
             productId={product?.id}
             moduleId={mod?.id}
+            description={lesson.description}
           />
         </div>
 

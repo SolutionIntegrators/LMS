@@ -11,6 +11,7 @@ interface LessonPlayerProps {
   isCompleted: boolean
   productId: string | null
   moduleId: string | null
+  description?: string | null
 }
 
 export default function LessonPlayer({
@@ -21,6 +22,7 @@ export default function LessonPlayer({
   isCompleted,
   productId,
   moduleId,
+  description,
 }: LessonPlayerProps) {
   const [completed, setCompleted] = useState(isCompleted)
   const [marking, setMarking] = useState(false)
@@ -108,6 +110,13 @@ export default function LessonPlayer({
           <div style={{ background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '3rem', textAlign: 'center' }}>
             <p style={{ color: 'var(--si-muted)', fontFamily: 'DM Sans, sans-serif' }}>Content coming soon.</p>
           </div>
+        )}
+
+        {/* For video lessons, the description sits below the video */}
+        {contentType === 'video' && description && (
+          <p style={{ color: 'var(--si-muted)', fontSize: '0.9375rem', lineHeight: 1.7, marginTop: '1.5rem', marginBottom: 0 }}>
+            {description}
+          </p>
         )}
       </div>
 
