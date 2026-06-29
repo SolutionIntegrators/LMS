@@ -12,6 +12,7 @@ interface LessonPlayerProps {
   productId: string | null
   moduleId: string | null
   description?: string | null
+  children?: React.ReactNode
 }
 
 export default function LessonPlayer({
@@ -23,6 +24,7 @@ export default function LessonPlayer({
   productId,
   moduleId,
   description,
+  children,
 }: LessonPlayerProps) {
   const [completed, setCompleted] = useState(isCompleted)
   const [marking, setMarking] = useState(false)
@@ -119,6 +121,9 @@ export default function LessonPlayer({
           </p>
         )}
       </div>
+
+      {/* Content elements (buttons, images, bullets, etc.) rendered below the media */}
+      {children}
 
       {/* Mark complete button */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--si-border)' }}>

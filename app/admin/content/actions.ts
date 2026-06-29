@@ -130,8 +130,17 @@ export async function updateLesson(formData: FormData) {
   const is_preview = formData.get('is_preview') === 'on'
   const required_tag = (formData.get('required_tag') as string) || null
 
+  const blocksRaw = (formData.get('content_blocks') as string) || '[]'
+  let content_blocks: unknown = []
+  try {
+    const parsed = JSON.parse(blocksRaw)
+    content_blocks = Array.isArray(parsed) ? parsed : []
+  } catch {
+    content_blocks = []
+  }
+
   const { error } = await (db.from('lessons') as any).update({
-    title, description, content_type, content_url, is_published, is_preview, required_tag,
+    title, description, content_type, content_url, is_published, is_preview, required_tag, content_blocks,
   }).eq('id', id)
   if (error) throw new Error(error.message)
 }

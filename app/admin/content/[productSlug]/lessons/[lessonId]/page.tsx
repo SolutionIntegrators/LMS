@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import LessonEditForm from './LessonEditForm'
+import { parseBlocks } from '@/lib/blocks'
 
 export default async function LessonEditPage({
   params,
@@ -46,6 +47,7 @@ export default async function LessonEditPage({
           is_published: lesson.is_published,
           is_preview: (lesson as any).is_preview ?? false,
           required_tag: (lesson as any).required_tag ?? null,
+          content_blocks: parseBlocks((lesson as any).content_blocks),
         }}
         productSlug={productSlug}
       />

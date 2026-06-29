@@ -4,6 +4,8 @@ export const runtime = 'edge'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import NavBar from '@/components/NavBar'
 import LessonPlayer from '@/components/LessonPlayer'
+import LessonBlocks from '@/components/LessonBlocks'
+import { parseBlocks } from '@/lib/blocks'
 import Link from 'next/link'
 
 export default async function LessonPage({
@@ -31,10 +33,10 @@ export default async function LessonPage({
   const previewQS = preview ? '?preview=1' : ''
 
   // Fetch lesson with module and product
-  const { data: lesson } = await supabase
-    .from('lessons')
+  // Cast: content_blocks is newer than the generated DB types.
+  const { data: lesson } = await (supabase.from('lessons') as any)
     .select(`
-      id, title, description, content_type, content_url, sort_order, required_tag, is_preview,
+      id, title, description, content_type, content_url, sort_order, required_tag, is_preview, content_blocks,
       modules (
         id, title, product_id,
         products (id, title, slug)
@@ -141,7 +143,9 @@ export default async function LessonPage({
             productId={product?.id}
             moduleId={mod?.id}
             description={lesson.description}
-          />
+          >
+            <LessonBlocks blocks={parseBlocks((lesson as any).content_blocks)} />
+          </LessonPlayer>
         </div>
 
         {/* Prev / Next navigation */}

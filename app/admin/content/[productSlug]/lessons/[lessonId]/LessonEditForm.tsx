@@ -4,6 +4,8 @@ import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { updateLesson } from '../../../actions'
 import LessonFileUpload from './LessonFileUpload'
+import LessonBlocksEditor from './LessonBlocksEditor'
+import type { Block } from '@/lib/blocks'
 
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)',
@@ -89,6 +91,7 @@ interface LessonData {
   is_published: boolean
   is_preview?: boolean
   required_tag?: string | null
+  content_blocks: Block[]
 }
 
 export default function LessonEditForm({
@@ -168,6 +171,19 @@ export default function LessonEditForm({
             setContentUrl(url)
           }}
         />
+
+        {/* Content elements (rendered below the media on the lesson page) */}
+        <div style={{ borderTop: '1px solid var(--si-border)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 600, color: 'var(--si-denim-blue)', margin: 0 }}>
+              Content elements
+            </p>
+            <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', color: 'var(--si-muted)', margin: '0.25rem 0 0' }}>
+              Buttons, images, bullets, dividers, and more — these appear on the lesson page below the main video/media.
+            </p>
+          </div>
+          <LessonBlocksEditor lessonId={lesson.id} defaultBlocks={lesson.content_blocks} />
+        </div>
 
         {/* Access control */}
         <div style={{ background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
