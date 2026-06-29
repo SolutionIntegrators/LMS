@@ -5,8 +5,15 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import NavBar from '@/components/NavBar'
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ preview?: string }>
+}) {
   const { slug } = await params
+  const { preview: previewParam } = await searchParams
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -18,13 +25,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .eq('id', user.id)
     .single()
 
-  // Verify access
-  const { data: product } = await supabase
+  const isAdmin = profile?.role === 'admin'
+  const preview = previewParam === '1' && isAdmin
+
+  // Verify access. Admins may view inactive (draft) products so they can preview
+  // before publishing; students only ever see active products.
+  let productQuery = supabase
     .from('products')
-    .select('id, title, slug, description, cover_image_url')
+    .select('id, title, slug, description, cover_image_url, is_active')
     .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
+  if (!isAdmin) productQuery = productQuery.eq('is_active', true)
+  const { data: product } = await productQuery.single()
 
 
   if (!product) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>Product not found.</div>
@@ -36,7 +47,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .eq('product_id', product.id)
     .single()
 
-  if (!access && profile?.role !== 'admin') return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this product.</div>
+  if (!access && !isAdmin) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this product.</div>
 
   // Fetch modules with lessons
   const { data: modules } = await supabase
@@ -60,15 +71,25 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const completedCount = (modules ?? []).flatMap((m) => m.lessons ?? []).filter((l) => completedIds.has(l.id)).length
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
-  // Log product access
-  await supabase.from('activity_logs').insert({
-    user_id: user.id,
-    event_type: 'product_accessed',
-    product_id: product.id,
-  })
+  // Log product access — skip in preview mode so admin previews don't pollute analytics
+  if (!preview) {
+    await supabase.from('activity_logs').insert({
+      user_id: user.id,
+      event_type: 'product_accessed',
+      product_id: product.id,
+    })
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
+      {preview && (
+        <div style={{ background: 'var(--si-burnt-orange)', color: 'white', padding: '0.625rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem' }}>
+          <span>👁 Preview mode — this is exactly what a student sees{!product.is_active ? ' · this product is currently a draft (inactive)' : ''}.</span>
+          <Link href={`/admin/content/${product.slug}`} style={{ color: 'white', fontWeight: 700, textDecoration: 'underline' }}>
+            Exit preview
+          </Link>
+        </div>
+      )}
       <NavBar email={profile?.email ?? ''} role={profile?.role ?? 'user'} />
 
       {/* Hero */}
@@ -135,7 +156,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 {lessons.map((lesson, i) => {
                   const done = completedIds.has(lesson.id)
                   return (
-                    <Link key={lesson.id} href={`/lessons/${lesson.id}`} style={{ textDecoration: 'none' }}>
+                    <Link key={lesson.id} href={preview ? `/lessons/${lesson.id}?preview=1` : `/lessons/${lesson.id}`} style={{ textDecoration: 'none' }}>
                       <div
                         style={{
                           padding: '1rem 1.5rem',

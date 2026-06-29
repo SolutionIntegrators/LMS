@@ -6,8 +6,15 @@ import NavBar from '@/components/NavBar'
 import LessonPlayer from '@/components/LessonPlayer'
 import Link from 'next/link'
 
-export default async function LessonPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LessonPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ preview?: string }>
+}) {
   const { id } = await params
+  const { preview: previewParam } = await searchParams
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,6 +27,8 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     .single()
 
   const profileData = profile as any
+  const preview = previewParam === '1' && profileData?.role === 'admin'
+  const previewQS = preview ? '?preview=1' : ''
 
   // Fetch lesson with module and product
   const { data: lesson } = await supabase
@@ -68,14 +77,16 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
     .eq('lesson_id', id)
     .single()
 
-  // Log lesson view
-  await supabase.from('activity_logs').insert({
-    user_id: user.id,
-    event_type: 'lesson_viewed',
-    product_id: product?.id ?? null,
-    module_id: mod?.id ?? null,
-    lesson_id: lesson.id,
-  })
+  // Log lesson view — skip in preview mode so admin previews don't pollute analytics
+  if (!preview) {
+    await supabase.from('activity_logs').insert({
+      user_id: user.id,
+      event_type: 'lesson_viewed',
+      product_id: product?.id ?? null,
+      module_id: mod?.id ?? null,
+      lesson_id: lesson.id,
+    })
+  }
 
   // Fetch sibling lessons for prev/next nav
   const { data: siblingLessons } = await supabase
@@ -90,6 +101,14 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
+      {preview && (
+        <div style={{ background: 'var(--si-burnt-orange)', color: 'white', padding: '0.625rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem' }}>
+          <span>👁 Preview mode — this is exactly what a student sees.</span>
+          <Link href={`/admin/content/${product?.slug}`} style={{ color: 'white', fontWeight: 700, textDecoration: 'underline' }}>
+            Exit preview
+          </Link>
+        </div>
+      )}
       <NavBar email={profileData?.email ?? ''} role={profileData?.role ?? 'user'} />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
@@ -97,7 +116,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--si-muted)', flexWrap: 'wrap' }}>
           <Link href="/dashboard" style={{ color: 'var(--si-muted)', textDecoration: 'none' }}>Dashboard</Link>
           <span>›</span>
-          <Link href={`/products/${product?.slug}`} style={{ color: 'var(--si-muted)', textDecoration: 'none' }}>{product?.title}</Link>
+          <Link href={`/products/${product?.slug}${previewQS}`} style={{ color: 'var(--si-muted)', textDecoration: 'none' }}>{product?.title}</Link>
           <span>›</span>
           <span style={{ color: 'var(--si-dark-text)' }}>{mod?.title}</span>
         </div>
@@ -127,7 +146,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
         {/* Prev / Next navigation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
           {prevLesson ? (
-            <Link href={`/lessons/${prevLesson.id}`} style={{ textDecoration: 'none', flex: 1 }}>
+            <Link href={`/lessons/${prevLesson.id}${previewQS}`} style={{ textDecoration: 'none', flex: 1 }}>
               <div className="card" style={{ padding: '1rem 1.25rem', cursor: 'pointer' }}>
                 <div style={{ color: 'var(--si-muted)', fontSize: '0.75rem', fontFamily: 'DM Sans, sans-serif', marginBottom: '0.25rem' }}>← Previous</div>
                 <div style={{ color: 'var(--si-dark-text)', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>{prevLesson.title}</div>
@@ -136,7 +155,7 @@ export default async function LessonPage({ params }: { params: Promise<{ id: str
           ) : <div style={{ flex: 1 }} />}
 
           {nextLesson ? (
-            <Link href={`/lessons/${nextLesson.id}`} style={{ textDecoration: 'none', flex: 1 }}>
+            <Link href={`/lessons/${nextLesson.id}${previewQS}`} style={{ textDecoration: 'none', flex: 1 }}>
               <div className="card" style={{ padding: '1rem 1.25rem', cursor: 'pointer', textAlign: 'right' }}>
                 <div style={{ color: 'var(--si-muted)', fontSize: '0.75rem', fontFamily: 'DM Sans, sans-serif', marginBottom: '0.25rem' }}>Next →</div>
                 <div style={{ color: 'var(--si-dark-text)', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>{nextLesson.title}</div>

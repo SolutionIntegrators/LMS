@@ -67,11 +67,26 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--si-muted)', marginBottom: '1.25rem' }}>
-        <Link href="/admin/content" style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none' }}>Products</Link>
-        {' → '}
-        {product.title}
+      {/* Breadcrumb + preview */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+        <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--si-muted)' }}>
+          <Link href="/admin/content" style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none' }}>Products</Link>
+          {' → '}
+          {product.title}
+        </div>
+        <a
+          href={`/products/${product.slug}?preview=1`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', fontWeight: 600,
+            color: 'var(--si-denim-blue)', textDecoration: 'none',
+            border: '1.5px solid var(--si-denim-blue)', borderRadius: 'var(--si-radius-sm)',
+            padding: '0.4rem 0.875rem', whiteSpace: 'nowrap', background: 'var(--si-white)',
+          }}
+        >
+          👁 Preview as student ↗
+        </a>
       </div>
 
       {/* Product settings */}
