@@ -1,6 +1,5 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 async function getAdminClient() {
@@ -52,7 +51,6 @@ export async function deleteProduct(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await db.from('products').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  redirect('/admin/content')
 }
 
 // ── Modules ───────────────────────────────────────────────

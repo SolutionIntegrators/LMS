@@ -5,9 +5,10 @@ import { useState, useRef } from 'react'
 interface Props {
   lessonId: string
   currentUrl: string | null
+  onUploaded?: (url: string) => void
 }
 
-export default function LessonFileUpload({ lessonId, currentUrl }: Props) {
+export default function LessonFileUpload({ lessonId, currentUrl, onUploaded }: Props) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle')
   const [progress, setProgress] = useState(0)
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
@@ -41,10 +42,8 @@ export default function LessonFileUpload({ lessonId, currentUrl }: Props) {
         xhr.send(file)
       })
 
-      // 3. Set the URL in the content_url field so the form saves it
-      const urlInput = document.getElementById(`content-url-${lessonId}`) as HTMLInputElement | null
-      if (urlInput) urlInput.value = publicUrl
-
+      // 3. Notify parent so it can update the content_url field
+      onUploaded?.(publicUrl)
       setUploadedUrl(publicUrl)
       setStatus('done')
     } catch (err: any) {
