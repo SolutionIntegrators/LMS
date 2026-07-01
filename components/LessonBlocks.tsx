@@ -79,16 +79,18 @@ export default function LessonBlocks({ blocks }: { blocks: Block[] }) {
               </div>
             )
 
-          case 'bullets':
+          case 'bullets': {
+            const items = block.items.filter(Boolean)
             return (
-              <ul key={block.id} style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {block.items.filter(Boolean).map((item, i) => (
-                  <li key={i} style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.6, color: 'var(--si-dark-text)' }}>
+              <ul key={block.id} style={{ margin: 0, paddingLeft: '1.5rem', listStyleType: 'disc', listStylePosition: 'outside' }}>
+                {items.map((item, i) => (
+                  <li key={i} style={{ display: 'list-item', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.6, color: 'var(--si-dark-text)', marginBottom: i < items.length - 1 ? '0.4rem' : 0 }}>
                     {item}
                   </li>
                 ))}
               </ul>
             )
+          }
 
           case 'html':
             return (
