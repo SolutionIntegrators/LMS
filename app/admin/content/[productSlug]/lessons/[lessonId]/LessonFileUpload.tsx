@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { createClient } from '@/lib/supabase'
 
 interface Props {
   lessonId: string
@@ -8,46 +9,38 @@ interface Props {
   onUploaded?: (url: string) => void
 }
 
+function sanitize(name: string): string {
+  const dot = name.lastIndexOf('.')
+  const base = (dot > 0 ? name.slice(0, dot) : name).replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'file'
+  const ext = dot > 0 ? name.slice(dot + 1).replace(/[^a-zA-Z0-9]+/g, '').toLowerCase() : ''
+  return ext ? `${base}.${ext}` : base
+}
+
 export default function LessonFileUpload({ lessonId, currentUrl, onUploaded }: Props) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle')
-  const [progress, setProgress] = useState(0)
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0]
     if (!file) return
-
     setStatus('uploading')
-    setProgress(0)
-
+    setErrorMsg(null)
     try {
-      // 1. Get presigned URL from our API
-      const res = await fetch(
-        `/api/admin/r2-presign?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}&lessonId=${lessonId}`
-      )
-      if (!res.ok) throw new Error(await res.text())
-      const { presignedUrl, publicUrl } = await res.json()
-
-      // 2. Upload directly to R2
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
-        }
-        xhr.onload = () => (xhr.status === 200 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)))
-        xhr.onerror = () => reject(new Error('Upload failed'))
-        xhr.open('PUT', presignedUrl)
-        xhr.setRequestHeader('Content-Type', file.type)
-        xhr.send(file)
+      const path = `${lessonId}/${Date.now()}-${sanitize(file.name)}`
+      const { error } = await supabase.storage.from('lesson-content').upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || undefined,
       })
-
-      // 3. Notify parent so it can update the content_url field
-      onUploaded?.(publicUrl)
-      setUploadedUrl(publicUrl)
+      if (error) throw error
+      const { data } = supabase.storage.from('lesson-content').getPublicUrl(path)
+      onUploaded?.(data.publicUrl)
       setStatus('done')
     } catch (err: any) {
       console.error(err)
+      setErrorMsg(err?.message || 'Upload failed')
       setStatus('error')
     }
   }
@@ -60,7 +53,7 @@ export default function LessonFileUpload({ lessonId, currentUrl, onUploaded }: P
       background: 'var(--si-linen)',
     }}>
       <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)', marginBottom: '0.75rem' }}>
-        Upload file to R2 (sets Content URL automatically)
+        Upload a file (sets the Content URL automatically)
       </p>
 
       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -75,29 +68,24 @@ export default function LessonFileUpload({ lessonId, currentUrl, onUploaded }: P
           onClick={handleUpload}
           disabled={status === 'uploading'}
           style={{
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            padding: '0.4rem 1rem',
-            borderRadius: 6,
-            border: 'none',
+            fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', fontWeight: 500,
+            padding: '0.4rem 1rem', borderRadius: 6, border: 'none',
             background: status === 'uploading' ? 'var(--si-muted)' : 'var(--si-denim-blue)',
-            color: 'white',
-            cursor: status === 'uploading' ? 'not-allowed' : 'pointer',
+            color: 'white', cursor: status === 'uploading' ? 'not-allowed' : 'pointer',
           }}
         >
-          {status === 'uploading' ? `Uploading ${progress}%…` : 'Upload'}
+          {status === 'uploading' ? 'Uploading…' : 'Upload'}
         </button>
       </div>
 
       {status === 'done' && (
         <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: '#1A6B3C', marginTop: '0.5rem' }}>
-          ✓ Uploaded — URL set in Content URL field above. Click Save Lesson to keep it.
+          ✓ Uploaded — URL set in Content URL above. Click Save Lesson to keep it.
         </p>
       )}
       {status === 'error' && (
         <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: '#8B2A1A', marginTop: '0.5rem' }}>
-          Upload failed. Make sure R2 env vars are configured (CF_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).
+          Upload failed{errorMsg ? `: ${errorMsg}` : ''}.
         </p>
       )}
       {currentUrl && status === 'idle' && (

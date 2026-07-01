@@ -2,6 +2,14 @@
 
 import { useState } from 'react'
 import type { Block, BlockType } from '@/lib/blocks'
+import { createClient } from '@/lib/supabase'
+
+function sanitizeName(name: string): string {
+  const dot = name.lastIndexOf('.')
+  const base = (dot > 0 ? name.slice(0, dot) : name).replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'file'
+  const ext = dot > 0 ? name.slice(dot + 1).replace(/[^a-zA-Z0-9]+/g, '').toLowerCase() : ''
+  return ext ? `${base}.${ext}` : base
+}
 
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)',
@@ -175,9 +183,15 @@ function BlockFields({
 
     case 'text':
       return (
-        <Field label="Text">
-          <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={block.text} onChange={(e) => update(block.id, { text: e.target.value })} />
-        </Field>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          <span style={labelText}>Text</span>
+          <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={block.text}
+            placeholder="Plain text. For a clickable link use [click here](https://example.com). Also **bold** and *italic*."
+            onChange={(e) => update(block.id, { text: e.target.value })} />
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--si-muted)' }}>
+            Links: <code>[label](https://url.com)</code> · Bold: <code>**text**</code> · Italic: <code>*text*</code>
+          </span>
+        </div>
       )
 
     case 'button':
@@ -278,20 +292,25 @@ function BlockFields({
 
 function ImageUpload({ lessonId, onUploaded }: { lessonId: string; onUploaded: (url: string) => void }) {
   const [status, setStatus] = useState<'idle' | 'uploading' | 'error'>('idle')
+  const supabase = createClient()
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setStatus('uploading')
     try {
-      const res = await fetch(`/api/admin/r2-presign?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}&lessonId=${lessonId}`)
-      if (!res.ok) throw new Error(await res.text())
-      const { presignedUrl, publicUrl } = await res.json()
-      const put = await fetch(presignedUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
-      if (!put.ok) throw new Error('upload failed')
-      onUploaded(publicUrl)
+      const path = `${lessonId}/${Date.now()}-${sanitizeName(file.name)}`
+      const { error } = await supabase.storage.from('lesson-content').upload(path, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || undefined,
+      })
+      if (error) throw error
+      const { data } = supabase.storage.from('lesson-content').getPublicUrl(path)
+      onUploaded(data.publicUrl)
       setStatus('idle')
-    } catch {
+    } catch (err) {
+      console.error(err)
       setStatus('error')
     }
   }

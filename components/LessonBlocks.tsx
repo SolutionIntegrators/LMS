@@ -1,5 +1,23 @@
 import type { Block, BlockAlign } from '@/lib/blocks'
 
+// Minimal, safe inline markdown: escapes all HTML first, then adds only the
+// tags we generate (links restricted to http/https), so admin-authored text
+// can be clickable without allowing script injection.
+function escapeHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+function mdInline(text: string | null | undefined): string {
+  let s = escapeHtml(text ?? '')
+  s = s.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--si-burnt-orange);text-decoration:underline">$1</a>'
+  )
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+  s = s.replace(/\n/g, '<br/>')
+  return s
+}
+
 const imageMaxWidth: Record<'small' | 'medium' | 'full', number | string> = {
   small: 280,
   medium: 480,
@@ -30,9 +48,10 @@ export default function LessonBlocks({ blocks }: { blocks: Block[] }) {
 
           case 'text':
             return (
-              <p key={block.id} style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.7, color: 'var(--si-dark-text)', margin: 0, whiteSpace: 'pre-wrap' }}>
-                {block.text}
-              </p>
+              <p key={block.id}
+                style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.7, color: 'var(--si-dark-text)', margin: 0 }}
+                dangerouslySetInnerHTML={{ __html: mdInline(block.text) }}
+              />
             )
 
           case 'button': {
@@ -84,9 +103,10 @@ export default function LessonBlocks({ blocks }: { blocks: Block[] }) {
             return (
               <ul key={block.id} style={{ margin: 0, paddingLeft: '1.5rem', listStyleType: 'disc', listStylePosition: 'outside' }}>
                 {items.map((item, i) => (
-                  <li key={i} style={{ display: 'list-item', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.6, color: 'var(--si-dark-text)', marginBottom: i < items.length - 1 ? '0.4rem' : 0 }}>
-                    {item}
-                  </li>
+                  <li key={i}
+                    style={{ display: 'list-item', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.6, color: 'var(--si-dark-text)', marginBottom: i < items.length - 1 ? '0.4rem' : 0 }}
+                    dangerouslySetInnerHTML={{ __html: mdInline(item) }}
+                  />
                 ))}
               </ul>
             )
