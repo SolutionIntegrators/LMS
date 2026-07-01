@@ -1,6 +1,7 @@
 export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
+import { pushSaleToAirtable } from '@/lib/airtable'
 
 // Zapier sends a POST with JSON body.
 // Auth: include ZAPIER_WEBHOOK_SECRET as x-api-key header in the Zapier request.
@@ -93,6 +94,19 @@ export async function POST(request: Request) {
     product_id: product.id,
     event_type: 'purchase',
     metadata: { source: 'zapier', email, transaction_ref: transactionRef, full_name: fullName },
+  })
+
+  // Mirror the sale into the Airtable Digital Product Hub (best-effort)
+  const amountRaw = (body as any).amount
+  await pushSaleToAirtable({
+    email,
+    fullName: fullName || null,
+    productName: (product as any).title,
+    thrivecartId: productId || null,
+    lmsSlug: productSlug || null,
+    amount: amountRaw != null && amountRaw !== '' ? Number(amountRaw) : null,
+    source: 'Zapier',
+    transactionRef,
   })
 
   return Response.json({

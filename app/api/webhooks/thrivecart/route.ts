@@ -1,6 +1,7 @@
 export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
+import { pushSaleToAirtable } from '@/lib/airtable'
 
 export async function GET() {
   return new Response('ThriveCart webhook endpoint active', { status: 200 })
@@ -84,6 +85,17 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
     metadata: { ...metadata, email, tc_product_id: tcProductId, transaction_ref: transactionRef },
   })
 
+  // Mirror the sale into the Airtable Digital Product Hub (best-effort)
+  await pushSaleToAirtable({
+    email,
+    fullName: (metadata.full_name as string) ?? null,
+    productName: product.title,
+    thrivecartId: tcProductId,
+    amount: typeof metadata.amount === 'number' ? metadata.amount : null,
+    source: 'ThriveCart',
+    transactionRef,
+  })
+
   console.log(`Access granted: ${email} → ${product.title}`)
   return { ok: true, message: `Access granted: ${email} → ${product.title}` }
 }
@@ -146,10 +158,14 @@ export async function POST(request: Request) {
     })
   }
 
+  const amountRaw = payload.order?.total ?? payload.total ?? payload.amount ?? payload.charge?.total ?? null
+  const amount = amountRaw != null && amountRaw !== '' ? Number(amountRaw) : undefined
+
   const result = await grantAccess(email, tcProductId, transactionRef, 'purchase', {
     source: 'thrivecart',
     tc_event: event,
     full_name: [firstName, lastName].filter(Boolean).join(' ') || undefined,
+    amount,
   })
 
   return new Response(result.message, { status: result.ok ? 200 : 500 })
