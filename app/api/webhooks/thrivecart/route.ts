@@ -6,6 +6,14 @@ export async function GET() {
   return new Response('ThriveCart webhook endpoint active', { status: 200 })
 }
 
+// Constant-time string comparison to avoid timing attacks on the shared secret.
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
 async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -81,18 +89,28 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
 }
 
 export async function POST(request: Request) {
-  const rawBody = await request.text()
-
-  // Handle ThriveCart test ping (empty body or ping event) — always return 200
-  if (!rawBody || rawBody === '{}') return new Response('OK', { status: 200 })
-
-  // Verify signature if secret is configured and header is present
   const secret = process.env.THRIVECART_WEBHOOK_SECRET
-  const signature = request.headers.get('x-thrivecart-signature')
-  if (secret && signature) {
-    const valid = await verifySignature(rawBody, signature, secret)
-    if (!valid) return new Response('Invalid signature', { status: 401 })
+
+  // Fail closed: this endpoint creates users and grants product access, so it must
+  // never process a request that can't prove it knows the shared secret.
+  if (!secret) {
+    return new Response('Webhook secret not configured', { status: 503 })
   }
+
+  const url = new URL(request.url)
+  const providedKey = url.searchParams.get('key') ?? request.headers.get('x-api-key') ?? ''
+  const rawBody = await request.text()
+  const signature = request.headers.get('x-thrivecart-signature')
+
+  // Accept either the shared key (?key=… or x-api-key header) or a valid HMAC signature.
+  const keyValid = providedKey.length > 0 && safeEqual(providedKey, secret)
+  const hmacValid = !!signature && (await verifySignature(rawBody, signature, secret))
+  if (!keyValid && !hmacValid) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  // Handle ThriveCart test ping (empty body or ping event) — return 200 once authenticated
+  if (!rawBody || rawBody === '{}') return new Response('OK', { status: 200 })
 
   let payload: any
   try {
