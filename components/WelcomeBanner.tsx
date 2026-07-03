@@ -22,8 +22,8 @@ export default function WelcomeBanner() {
         .wb-badge{position:absolute;bottom:14px;right:14px;z-index:2;background:rgba(20,26,32,0.55);color:#FCF1E8;font-family:'DM Sans',var(--font-dm-sans),sans-serif;font-size:0.72rem;letter-spacing:0.02em;padding:0.35rem 0.7rem;border-radius:6px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
         @media (max-width:720px){
           .wb-card{flex-direction:column;}
-          .wb-right{order:-1;min-height:210px;flex-basis:auto;}
-          .wb-fade{background:linear-gradient(to bottom,rgba(58,79,94,0) 50%,#3A4F5E 100%);}
+          .wb-right{order:-1;min-height:300px;flex-basis:auto;background-position:center 30%;}
+          .wb-fade{background:linear-gradient(to bottom,rgba(58,79,94,0) 62%,#3A4F5E 100%);}
           .wb-left{padding:1.75rem 1.5rem;}
           .wb-btns{max-width:none;}
         }
