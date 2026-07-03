@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import EmbedFrame from './EmbedFrame'
 
 interface LessonPlayerProps {
   lessonId: string
@@ -63,13 +64,7 @@ export default function LessonPlayer({
         )}
 
         {contentType === 'embed' && contentUrl && (
-          <div style={{ position: 'relative', paddingBottom: '56.25%', borderRadius: 'var(--si-radius-sm)', overflow: 'hidden' }}>
-            <iframe
-              src={contentUrl}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-              allowFullScreen
-            />
-          </div>
+          <EmbedFrame src={contentUrl} />
         )}
 
         {contentType === 'pdf' && contentUrl && (
