@@ -1,5 +1,5 @@
 const PHOTO = 'https://static.showit.com/file/H7dtw9km6SqQPBR9UEptmQ/154140/9p5a8604.jpg'
-const VIDEO = 'https://player.mediadelivery.net/play/667927/2f20ddc3-240d-4c82-a711-43ce02fab280'
+const VIDEO = 'https://player.mediadelivery.net/play/667927/711f2caf-4ce8-40c9-9944-54e18a2ddc88'
 const SHOP = 'https://solutionintegrators.us/shop'
 const OFFERS = 'https://solutionintegrators.us/service-guide'
 
