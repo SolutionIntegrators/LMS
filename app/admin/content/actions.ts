@@ -208,13 +208,11 @@ export async function updateSiteSettings(formData: FormData) {
   const db = await getAdminClient()
   const announcement_active = formData.get('announcement_active') === 'on' ? 'true' : 'false'
   const announcement_text = (formData.get('announcement_text') as string) || ''
-  const welcome_video_url = ((formData.get('welcome_video_url') as string) || '').trim()
 
   const now = new Date().toISOString()
   const { error } = await (db as any).from('site_settings').upsert([
     { key: 'announcement_active', value: announcement_active, updated_at: now },
     { key: 'announcement_text', value: announcement_text, updated_at: now },
-    { key: 'welcome_video_url', value: welcome_video_url, updated_at: now },
   ])
   if (error) throw new Error(error.message)
   revalidatePath('/admin/settings')
