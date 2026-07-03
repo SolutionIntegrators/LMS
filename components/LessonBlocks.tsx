@@ -18,6 +18,51 @@ function mdInline(text: string | null | undefined): string {
   return s
 }
 
+// Same inline formatting but without newline→<br/> (used per-line by mdBlock).
+function mdInlineNoBr(text: string): string {
+  let s = escapeHtml(text)
+  s = s.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--si-burnt-orange);text-decoration:underline">$1</a>'
+  )
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  s = s.replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+  return s
+}
+
+// Block-level markdown for text blocks: lines starting with "- ", "* " or "• "
+// become bullet items (consecutive ones grouped into a <ul>); everything else
+// stays a normal line. All content still passes through escapeHtml.
+function mdBlock(text: string | null | undefined): string {
+  const lines = (text ?? '').split('\n')
+  const out: string[] = []
+  let list: string[] = []
+  const flushList = () => {
+    if (list.length) {
+      out.push(
+        `<ul style="margin:0.35rem 0;padding-left:1.4rem;list-style-type:disc;list-style-position:outside">${list
+          .map((li) => `<li style="margin-bottom:0.3rem">${li}</li>`)
+          .join('')}</ul>`
+      )
+      list = []
+    }
+  }
+  for (const line of lines) {
+    const m = line.match(/^\s*(?:[-*•])\s+(.*)$/)
+    if (m) {
+      list.push(mdInlineNoBr(m[1]))
+    } else {
+      flushList()
+      out.push(mdInlineNoBr(line))
+    }
+  }
+  flushList()
+  // Join plain lines with <br/>, but never put a <br/> adjacent to a list.
+  return out
+    .map((seg, i) => (i > 0 && !seg.startsWith('<ul') && !out[i - 1].startsWith('<ul') ? `<br/>${seg}` : seg))
+    .join('')
+}
+
 const imageMaxWidth: Record<'small' | 'medium' | 'full', number | string> = {
   small: 280,
   medium: 480,
@@ -48,9 +93,9 @@ export default function LessonBlocks({ blocks }: { blocks: Block[] }) {
 
           case 'text':
             return (
-              <p key={block.id}
+              <div key={block.id}
                 style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.9375rem', lineHeight: 1.7, color: 'var(--si-dark-text)', margin: 0 }}
-                dangerouslySetInnerHTML={{ __html: mdInline(block.text) }}
+                dangerouslySetInnerHTML={{ __html: mdBlock(block.text) }}
               />
             )
 

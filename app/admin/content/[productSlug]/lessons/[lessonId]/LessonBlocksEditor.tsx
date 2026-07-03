@@ -186,10 +186,10 @@ function BlockFields({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
           <span style={labelText}>Text</span>
           <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={block.text}
-            placeholder="Plain text. For a clickable link use [click here](https://example.com). Also **bold** and *italic*."
+            placeholder="Plain text. For a clickable link use [click here](https://example.com). Also **bold**, *italic*, and lines starting with - for bullets."
             onChange={(e) => update(block.id, { text: e.target.value })} />
           <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', color: 'var(--si-muted)' }}>
-            Links: <code>[label](https://url.com)</code> · Bold: <code>**text**</code> · Italic: <code>*text*</code>
+            Links: <code>[label](https://url.com)</code> · Bold: <code>**text**</code> · Italic: <code>*text*</code> · Bullets: start a line with <code>- </code>
           </span>
         </div>
       )

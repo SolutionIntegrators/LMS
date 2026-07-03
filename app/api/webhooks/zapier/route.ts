@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const db = createServiceSupabaseClient()
 
   // Look up product by ThriveCart ID or slug
-  let productQuery = db.from('products').select('id, title')
+  let productQuery = db.from('products').select('id, title, auto_grant_tags')
   if (productId) {
     productQuery = productQuery.eq('thrivecart_product_id', productId) as any
   } else {
@@ -87,6 +87,16 @@ export async function POST(request: Request) {
 
   if (accessError) {
     return new Response(`Failed to grant access: ${accessError.message}`, { status: 500 })
+  }
+
+  // Apply auto-grant tags from the product config (parity with the ThriveCart route,
+  // so tag-gated modules unlock no matter which webhook granted the purchase).
+  const autoGrantTags: string[] = (product as any).auto_grant_tags ?? []
+  if (autoGrantTags.length > 0) {
+    const { data: profileData } = await (db as any).from('profiles').select('tags').eq('id', userId).single()
+    const existingTags: string[] = profileData?.tags ?? []
+    const mergedTags = [...new Set([...existingTags, ...autoGrantTags])]
+    await (db as any).from('profiles').update({ tags: mergedTags }).eq('id', userId)
   }
 
   await db.from('activity_logs').insert({
