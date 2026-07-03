@@ -143,6 +143,7 @@ export default async function LessonPage({
             productId={product?.id}
             moduleId={mod?.id}
             description={lesson.description}
+            hasBlocks={parseBlocks((lesson as any).content_blocks).length > 0}
           >
             <LessonBlocks blocks={parseBlocks((lesson as any).content_blocks)} />
           </LessonPlayer>

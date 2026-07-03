@@ -12,6 +12,7 @@ interface LessonPlayerProps {
   productId: string | null
   moduleId: string | null
   description?: string | null
+  hasBlocks?: boolean
   children?: React.ReactNode
 }
 
@@ -24,6 +25,7 @@ export default function LessonPlayer({
   productId,
   moduleId,
   description,
+  hasBlocks,
   children,
 }: LessonPlayerProps) {
   const [completed, setCompleted] = useState(isCompleted)
@@ -98,17 +100,18 @@ export default function LessonPlayer({
           </div>
         )}
 
-        {contentType === 'text' && (
+        {contentType === 'text' && contentUrl && (
           <div style={{ background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '1.5rem', color: 'var(--si-dark-text)', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.8 }}>
-            {contentUrl ? (
-              <div dangerouslySetInnerHTML={{ __html: contentUrl }} />
-            ) : (
-              <p style={{ color: 'var(--si-muted)' }}>Content coming soon.</p>
-            )}
+            <div dangerouslySetInnerHTML={{ __html: contentUrl }} />
+          </div>
+        )}
+        {contentType === 'text' && !contentUrl && !hasBlocks && (
+          <div style={{ background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '1.5rem', color: 'var(--si-dark-text)', fontFamily: 'DM Sans, sans-serif', lineHeight: 1.8 }}>
+            <p style={{ color: 'var(--si-muted)' }}>Content coming soon.</p>
           </div>
         )}
 
-        {!contentUrl && contentType !== 'text' && (
+        {!contentUrl && contentType !== 'text' && !hasBlocks && (
           <div style={{ background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '3rem', textAlign: 'center' }}>
             <p style={{ color: 'var(--si-muted)', fontFamily: 'DM Sans, sans-serif' }}>Content coming soon.</p>
           </div>
