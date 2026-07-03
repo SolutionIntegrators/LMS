@@ -47,10 +47,12 @@ export async function GET(request: Request) {
       await supabase.from('activity_logs').insert({
         user_id: data.user.id,
         event_type: 'login',
-        metadata: { method: 'magic_link' },
+        metadata: { method: otpType === 'recovery' ? 'password_reset' : 'magic_link' },
       })
 
-      return NextResponse.redirect(`${origin}${next}`)
+      // Password-reset links land on the set-new-password page (session is now active).
+      const dest = otpType === 'recovery' ? '/reset-password' : next
+      return NextResponse.redirect(`${origin}${dest}`)
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { createOtpClient } from '@/lib/supabase-otp'
 import Image from 'next/image'
 
 type Mode = 'magic' | 'password'
@@ -13,14 +14,18 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // SSR client for password sign-in (persists the session as cookies).
   const supabase = createClient()
+  // Implicit-flow client for email links (magic link / reset) so they carry
+  // a cross-device OTP token instead of a browser-bound PKCE token.
+  const otp = createOtpClient()
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await otp.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -51,6 +56,24 @@ export default function LoginPage() {
     } else {
       window.location.href = '/dashboard'
     }
+  }
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setMessage({ type: 'error', text: 'Enter your email above first, then click “Forgot password?”' })
+      return
+    }
+    setLoading(true)
+    setMessage(null)
+    const { error } = await otp.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    })
+    setLoading(false)
+    setMessage(
+      error
+        ? { type: 'error', text: error.message }
+        : { type: 'success', text: 'Check your email — we sent you a link to reset your password.' }
+    )
   }
 
   return (
@@ -208,6 +231,14 @@ export default function LoginPage() {
             </label>
             <button type="submit" className="btn-primary" disabled={loading} style={{ width: '100%', marginTop: '0.5rem' }}>
               {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={loading}
+              style={{ background: 'none', border: 'none', color: 'var(--si-burnt-orange)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', cursor: 'pointer', textDecoration: 'underline', alignSelf: 'center', marginTop: '0.25rem' }}
+            >
+              Forgot password?
             </button>
           </form>
         )}
