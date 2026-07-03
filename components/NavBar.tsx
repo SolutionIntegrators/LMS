@@ -47,6 +47,21 @@ export default function NavBar({ email, role }: NavBarProps) {
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <a
+          href="https://forms.clickup.com/8619174/f/87156-46214/K4501E0ZLSXXXHF6QA"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: 'var(--si-linen)',
+            fontFamily: 'DM Sans, sans-serif',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            textDecoration: 'none',
+            letterSpacing: '0.03em',
+          }}
+        >
+          Support
+        </a>
         {role === 'admin' && (
           <Link
             href="/admin/users"
