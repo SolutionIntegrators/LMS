@@ -53,6 +53,7 @@ export default async function DashboardPage() {
   const settingsMap = Object.fromEntries((settings ?? []).map((s: any) => [s.key, s.value]))
   const announcementActive = settingsMap['announcement_active'] === 'true'
   const announcementText = settingsMap['announcement_text'] ?? ''
+  const welcomeVideoUrl = (settingsMap['welcome_video_url'] ?? '').trim()
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
@@ -94,6 +95,21 @@ export default async function DashboardPage() {
               : `You have access to ${products.length} goodie${products.length === 1 ? '' : 's'}.`}
           </p>
         </div>
+
+        {/* Welcome video */}
+        {welcomeVideoUrl && (
+          <div className="card" style={{ padding: '0.75rem', marginBottom: '2.5rem', maxWidth: 820, marginLeft: 'auto', marginRight: 'auto' }}>
+            <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 'var(--si-radius-sm)', overflow: 'hidden' }}>
+              <iframe
+                src={welcomeVideoUrl}
+                loading="lazy"
+                style={{ border: 0, position: 'absolute', top: 0, left: 0, height: '100%', width: '100%' }}
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;fullscreen;"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        )}
 
         {products.length === 0 ? (
           <div
