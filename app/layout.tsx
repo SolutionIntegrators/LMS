@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { DM_Sans, Questrial } from 'next/font/google'
 import './globals.css'
 import Footer from '@/components/Footer'
+import { branding } from '@/lib/branding'
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -16,8 +17,8 @@ const questrial = Questrial({
 })
 
 export const metadata: Metadata = {
-  title: 'Solution Integrators Portal',
-  description: 'Your learning portal for Solution Integrators programs',
+  title: branding.siteTitle,
+  description: branding.siteDescription,
 }
 
 export default function RootLayout({

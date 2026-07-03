@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { branding } from '@/lib/branding'
 
 interface NavBarProps {
   email: string
@@ -36,8 +37,8 @@ export default function NavBar({ email, role }: NavBarProps) {
       {/* Logo */}
       <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
         <Image
-          src="/SI-icon-badge-linen.png"
-          alt="Solution Integrators"
+          src={branding.logo.navBadge}
+          alt={branding.company}
           width={48}
           height={48}
           style={{ objectFit: 'contain' }}
@@ -48,7 +49,7 @@ export default function NavBar({ email, role }: NavBarProps) {
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
         <a
-          href="https://forms.clickup.com/8619174/f/87156-46214/K4501E0ZLSXXXHF6QA"
+          href={branding.links.support}
           target="_blank"
           rel="noopener noreferrer"
           style={{

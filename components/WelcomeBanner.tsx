@@ -1,9 +1,29 @@
-const PHOTO = 'https://static.showit.com/file/H7dtw9km6SqQPBR9UEptmQ/154140/9p5a8604.jpg'
-const VIDEO = 'https://player.mediadelivery.net/play/667927/711f2caf-4ce8-40c9-9944-54e18a2ddc88'
-const SHOP = 'https://solutionintegrators.us/shop'
-const OFFERS = 'https://solutionintegrators.us/service-guide'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { branding } from '@/lib/branding'
+
+const PHOTO = branding.welcome.photo
+const VIDEO = branding.welcome.videoEmbedUrl
+const SHOP = branding.links.shop
+const OFFERS = branding.links.offers
 
 export default function WelcomeBanner() {
+  const [open, setOpen] = useState(false)
+
+  // Close on Escape and lock body scroll while the lightbox is open
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [open])
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: `
@@ -30,19 +50,58 @@ export default function WelcomeBanner() {
       ` }} />
       <div className="wb-card">
         <div className="wb-left">
-          <h2 className="wb-h">Good to have you here! Jump right into your Goodies.</h2>
-          <p className="wb-sub">Everything you need is in one place. Start wherever makes sense for you.</p>
+          <h2 className="wb-h">{branding.welcome.heading}</h2>
+          <p className="wb-sub">{branding.welcome.subheading}</p>
           <div className="wb-btns">
-            <a className="wb-btn wb-btn-primary" href={VIDEO} target="_blank" rel="noopener noreferrer">Watch the welcome video</a>
+            <button type="button" className="wb-btn wb-btn-primary" onClick={() => setOpen(true)} style={{ cursor: 'pointer' }}>{branding.welcome.videoButtonLabel}</button>
             <a className="wb-btn wb-btn-secondary" href={SHOP} target="_blank" rel="noopener noreferrer">Shop the Goodies Shop</a>
             <a className="wb-btn wb-btn-secondary" href={OFFERS} target="_blank" rel="noopener noreferrer">Learn more about my offers</a>
           </div>
         </div>
         <div className="wb-right" style={{ backgroundImage: `url('${PHOTO}')` }}>
           <div className="wb-fade" />
-          <span className="wb-badge">Ashley Tindall · Solution Integrators</span>
+          <span className="wb-badge">{branding.welcome.photoBadge}</span>
         </div>
       </div>
+
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Welcome video"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(20,26,32,0.78)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 960 }}>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close video"
+              style={{
+                position: 'absolute', top: -44, right: 0, background: 'transparent', border: 'none',
+                color: '#FCF1E8', fontSize: '1.75rem', lineHeight: 1, cursor: 'pointer', padding: '0.25rem 0.5rem',
+                fontFamily: 'DM Sans, sans-serif',
+              }}
+            >
+              ✕
+            </button>
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, borderRadius: 12, overflow: 'hidden', background: '#000', boxShadow: '0 20px 60px rgba(0,0,0,0.45)' }}>
+              <iframe
+                src={VIDEO}
+                title="Welcome video"
+                loading="lazy"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

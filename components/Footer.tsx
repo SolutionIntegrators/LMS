@@ -1,3 +1,5 @@
+import { branding } from '@/lib/branding'
+
 export default function Footer() {
   const year = new Date().getFullYear()
   return (
@@ -22,23 +24,23 @@ export default function Footer() {
           color: 'var(--si-muted)',
         }}
       >
-        <span>© {year} Solution Integrators. All rights reserved.</span>
+        <span>© {year} {branding.company}. All rights reserved.</span>
         <span style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
           <a
-            href="https://solutionintegrators.us/shop"
+            href={branding.links.shop}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none', fontWeight: 600 }}
           >
-            Want more goodies? Visit the shop →
+            {branding.links.shopLabel}
           </a>
           <a
-            href="https://solutionintegrators.us/digital-product-terms-and-conditions"
+            href={branding.links.terms}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none', fontWeight: 500 }}
           >
-            Digital Product Terms &amp; Conditions
+            {branding.links.termsLabel}
           </a>
         </span>
       </div>

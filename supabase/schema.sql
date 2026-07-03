@@ -1,3 +1,7 @@
+-- ⚠️ DEPRECATED — do not use for new instances.
+-- The canonical, up-to-date schema (tables + RLS + functions + storage) is
+-- supabase/migrations/0001_init.sql. This file is kept only for reference and
+-- may be out of date. See SETUP.md.
 -- ============================================================
 -- Solution Integrators LMS — Supabase Schema
 -- Run this in the Supabase SQL editor (Dashboard > SQL Editor)

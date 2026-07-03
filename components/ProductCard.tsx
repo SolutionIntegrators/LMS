@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { branding } from '@/lib/branding'
 
 interface Props {
   product: {
@@ -56,7 +57,7 @@ export default function ProductCard({ product }: Props) {
               borderRadius: 4,
             }}
           >
-            Goodie
+            {branding.productNoun}
           </span>
         </div>
 
@@ -102,7 +103,7 @@ export default function ProductCard({ product }: Props) {
               textTransform: 'uppercase',
             }}
           >
-            Open goodie →
+            {branding.productOpenLabel}
           </div>
         </div>
       </div>

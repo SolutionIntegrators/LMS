@@ -92,7 +92,8 @@ export default function LessonPlayer({
             </p>
             <a
               href={contentUrl}
-              download
+              target="_blank"
+              rel="noopener noreferrer"
               className="btn-primary"
               style={{ display: 'inline-flex', textDecoration: 'none' }}
               onClick={markComplete}

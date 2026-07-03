@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { createOtpClient } from '@/lib/supabase-otp'
+import { branding } from '@/lib/branding'
 import Image from 'next/image'
 
 type Mode = 'magic' | 'password'
@@ -106,15 +107,15 @@ export default function LoginPage() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Image
-            src="/SI-primary-logo-orange.png"
-            alt="Solution Integrators"
+            src={branding.logo.login}
+            alt={branding.company}
             width={200}
             height={80}
             style={{ objectFit: 'contain', margin: '0 auto 0.75rem' }}
             priority
           />
           <p style={{ color: 'var(--si-muted)', fontSize: '0.875rem' }}>
-            Welcome to the Solution Integrators Goodies Shop
+            {branding.login.tagline}
           </p>
         </div>
 
@@ -261,7 +262,7 @@ export default function LoginPage() {
         )}
 
         <p style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--si-muted)' }}>
-          Access is granted automatically after purchase.
+          {branding.login.footnote}
         </p>
       </div>
     </div>
