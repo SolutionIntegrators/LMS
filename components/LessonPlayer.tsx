@@ -14,6 +14,7 @@ interface LessonPlayerProps {
   moduleId: string | null
   description?: string | null
   hasBlocks?: boolean
+  previewMode?: boolean
   children?: React.ReactNode
 }
 
@@ -27,6 +28,7 @@ export default function LessonPlayer({
   moduleId,
   description,
   hasBlocks,
+  previewMode,
   children,
 }: LessonPlayerProps) {
   const [completed, setCompleted] = useState(isCompleted)
@@ -35,6 +37,11 @@ export default function LessonPlayer({
 
   async function markComplete() {
     if (completed || marking) return
+    if (previewMode) {
+      // Admin preview: show the state change without writing real data
+      setCompleted(true)
+      return
+    }
     setMarking(true)
     await supabase.from('lesson_completions').insert({ user_id: userId, lesson_id: lessonId })
     await supabase.from('activity_logs').insert({

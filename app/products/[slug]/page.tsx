@@ -55,16 +55,22 @@ export default async function ProductPage({
   const { data: allModules } = await (supabase.from('modules') as any)
     .select(`
       id, title, description, sort_order, required_tag,
-      lessons (id, title, content_type, sort_order, is_preview)
+      lessons (id, title, content_type, sort_order, is_preview, is_published, required_tag)
     `)
     .eq('product_id', product.id)
     .order('sort_order')
 
-  // Tag-gated modules are hidden from students without the tag.
-  // Admins see everything (preview shows a badge on gated modules).
-  const modules = (allModules ?? []).filter((m: any) =>
-    isAdmin || !m.required_tag || userTags.includes(m.required_tag)
-  )
+  // Students never see: tag-gated modules without the tag, unpublished
+  // lessons, or lessons gated by a tag they lack. Admins see everything
+  // (drafts/gates get badges).
+  const modules = (allModules ?? [])
+    .filter((m: any) => isAdmin || !m.required_tag || userTags.includes(m.required_tag))
+    .map((m: any) => ({
+      ...m,
+      lessons: (m.lessons ?? []).filter((l: any) =>
+        isAdmin || (l.is_published && (!l.required_tag || userTags.includes(l.required_tag)))
+      ),
+    }))
 
   // Fetch completions
   const { data: completions } = await supabase
@@ -196,6 +202,16 @@ export default async function ProductPage({
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {isAdmin && !lesson.is_published && (
+                            <span style={{ background: 'var(--si-border)', color: 'var(--si-muted)', fontSize: '0.7rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0.2rem 0.5rem', borderRadius: 4 }}>
+                              Draft
+                            </span>
+                          )}
+                          {isAdmin && lesson.required_tag && (
+                            <span style={{ background: 'var(--si-linen-dark)', color: 'var(--si-denim-blue)', fontSize: '0.7rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0.2rem 0.5rem', borderRadius: 4 }}>
+                              🔒 {lesson.required_tag}
+                            </span>
+                          )}
                           {lesson.is_preview && (
                             <span style={{ background: 'var(--si-linen-dark)', color: 'var(--si-denim-blue)', fontSize: '0.7rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0.2rem 0.5rem', borderRadius: 4 }}>
                               Preview

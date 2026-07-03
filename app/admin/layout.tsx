@@ -11,9 +11,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Middleware handles unauthenticated → /login, but guard here too
   if (!user) {
     return (
-      <html><body>
+      <div>
         <script dangerouslySetInnerHTML={{ __html: `window.location.replace('/login')` }} />
-      </body></html>
+      </div>
     )
   }
 
@@ -26,9 +26,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!profile || profile.role !== 'admin') {
     return (
-      <html><body>
+      <div>
         <script dangerouslySetInnerHTML={{ __html: `window.location.replace('/dashboard')` }} />
-      </body></html>
+      </div>
     )
   }
 

@@ -18,7 +18,9 @@ export default async function AdminLogsPage({
     .limit(200)
 
   if (eventFilter) query = query.eq('event_type', eventFilter)
-  if (dateFilter) query = query.gte('created_at', `${dateFilter}T00:00:00`)
+  if (dateFilter) {
+    query = query.gte('created_at', `${dateFilter}T00:00:00`).lt('created_at', `${dateFilter}T23:59:59.999`)
+  }
 
   const { data: logsRaw } = await query
   const logs = logsRaw as any[] | null
@@ -79,7 +81,7 @@ export default async function AdminLogsPage({
                   {new Date(log.created_at).toLocaleString()}
                 </td>
                 <td style={{ padding: '0.625rem 0.875rem', color: 'var(--si-dark-text)' }}>
-                  {(log.profiles as any)?.email ?? log.user_id.slice(0, 8) + '…'}
+                  {(log.profiles as any)?.email ?? (log.user_id ? log.user_id.slice(0, 8) + '…' : 'system')}
                 </td>
                 <td style={{ padding: '0.625rem 0.875rem' }}>
                   <EventBadge type={log.event_type} />

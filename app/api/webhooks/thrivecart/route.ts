@@ -25,7 +25,7 @@ async function verifySignature(body: string, signature: string, secret: string):
   )
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
   const expected = Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('')
-  return expected === signature.toLowerCase()
+  return safeEqual(expected, signature.toLowerCase())
 }
 
 async function grantAccess(email: string, tcProductId: string, transactionRef: string, eventType: string, metadata: Record<string, unknown>) {

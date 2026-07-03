@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 async function getAdminClient() {
@@ -22,10 +23,18 @@ export async function createProduct(formData: FormData) {
   const title = formData.get('title') as string
   const description = (formData.get('description') as string) || null
   const thrivecart_product_id = (formData.get('thrivecart_product_id') as string) || null
-  const slug = toSlug(title)
+
+  // Slug must be unique and non-empty: fall back for symbol-only titles and
+  // suffix -2, -3… when the slug is already taken.
+  const base = toSlug(title) || 'product'
+  const { data: taken } = await db.from('products').select('slug').like('slug', `${base}%`)
+  const takenSet = new Set((taken ?? []).map((r: any) => r.slug))
+  let slug = base
+  for (let n = 2; takenSet.has(slug); n++) slug = `${base}-${n}`
 
   const { error } = await db.from('products').insert({ title, slug, description, thrivecart_product_id, is_active: false })
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content')
 }
 
 export async function updateProduct(formData: FormData) {
@@ -44,6 +53,7 @@ export async function updateProduct(formData: FormData) {
     title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags,
   }).eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content')
 }
 
 export async function deleteProduct(formData: FormData) {
@@ -51,6 +61,7 @@ export async function deleteProduct(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await db.from('products').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content')
 }
 
 // ── Modules ───────────────────────────────────────────────
@@ -65,6 +76,7 @@ export async function createModule(formData: FormData) {
 
   const { error } = await db.from('modules').insert({ product_id, title, sort_order })
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content', 'layout')
 }
 
 export async function updateModule(formData: FormData) {
@@ -77,6 +89,7 @@ export async function updateModule(formData: FormData) {
 
   const { error } = await (db.from('modules') as any).update({ title, thumbnail_url, thumbnail_color, required_tag }).eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content', 'layout')
 }
 
 export async function deleteModule(formData: FormData) {
@@ -84,6 +97,7 @@ export async function deleteModule(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await db.from('modules').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content', 'layout')
 }
 
 export async function reorderModule(formData: FormData) {
@@ -96,13 +110,21 @@ export async function reorderModule(formData: FormData) {
   if (!modules) return
 
   const idx = modules.findIndex((m) => m.id === id)
+  if (idx === -1) return
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1
   if (swapIdx < 0 || swapIdx >= modules.length) return
 
-  const a = modules[idx]
-  const b = modules[swapIdx]
-  await db.from('modules').update({ sort_order: b.sort_order }).eq('id', a.id)
-  await db.from('modules').update({ sort_order: a.sort_order }).eq('id', b.id)
+  // Swap positions, then renumber sequentially so duplicate sort_orders
+  // (from concurrent inserts) can never make reordering a no-op.
+  const order = [...modules]
+  ;[order[idx], order[swapIdx]] = [order[swapIdx], order[idx]]
+  for (let i = 0; i < order.length; i++) {
+    if (modules.find((m) => m.id === order[i].id)!.sort_order !== i + 1 || order[i].id !== modules[i]?.id) {
+      const { error } = await db.from('modules').update({ sort_order: i + 1 }).eq('id', order[i].id)
+      if (error) throw new Error(error.message)
+    }
+  }
+  revalidatePath('/admin/content', 'layout')
 }
 
 // ── Lessons ───────────────────────────────────────────────
@@ -144,6 +166,7 @@ export async function updateLesson(formData: FormData) {
     title, description, content_type, content_url, is_published, is_preview, required_tag, content_blocks,
   }).eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content', 'layout')
 }
 
 export async function deleteLesson(formData: FormData) {
@@ -151,6 +174,7 @@ export async function deleteLesson(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await db.from('lessons').delete().eq('id', id)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/content', 'layout')
 }
 
 export async function reorderLesson(formData: FormData) {
@@ -163,13 +187,19 @@ export async function reorderLesson(formData: FormData) {
   if (!lessons) return
 
   const idx = lessons.findIndex((l) => l.id === id)
+  if (idx === -1) return
   const swapIdx = direction === 'up' ? idx - 1 : idx + 1
   if (swapIdx < 0 || swapIdx >= lessons.length) return
 
-  const a = lessons[idx]
-  const b = lessons[swapIdx]
-  await db.from('lessons').update({ sort_order: b.sort_order }).eq('id', a.id)
-  await db.from('lessons').update({ sort_order: a.sort_order }).eq('id', b.id)
+  const order = [...lessons]
+  ;[order[idx], order[swapIdx]] = [order[swapIdx], order[idx]]
+  for (let i = 0; i < order.length; i++) {
+    if (lessons.find((l) => l.id === order[i].id)!.sort_order !== i + 1 || order[i].id !== lessons[i]?.id) {
+      const { error } = await db.from('lessons').update({ sort_order: i + 1 }).eq('id', order[i].id)
+      if (error) throw new Error(error.message)
+    }
+  }
+  revalidatePath('/admin/content', 'layout')
 }
 
 // ── Site Settings ─────────────────────────────────────────────────────────────
@@ -180,10 +210,12 @@ export async function updateSiteSettings(formData: FormData) {
   const announcement_text = (formData.get('announcement_text') as string) || ''
 
   const now = new Date().toISOString()
-  await (db as any).from('site_settings').upsert([
+  const { error } = await (db as any).from('site_settings').upsert([
     { key: 'announcement_active', value: announcement_active, updated_at: now },
     { key: 'announcement_text', value: announcement_text, updated_at: now },
   ])
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/settings')
 }
 
 // ── User Tags ─────────────────────────────────────────────────────────────────
@@ -196,4 +228,5 @@ export async function updateUserTags(formData: FormData) {
 
   const { error } = await (db.from('profiles') as any).update({ tags }).eq('id', userId)
   if (error) throw new Error(error.message)
+  revalidatePath('/admin/users')
 }

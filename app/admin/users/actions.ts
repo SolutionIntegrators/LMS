@@ -36,10 +36,18 @@ export async function inviteUser(formData: FormData) {
     userId = data.user.id
   }
 
-  await (svc.from('profiles') as any).upsert(
-    { id: userId, email, ...(fullName ? { full_name: fullName } : {}), role: 'user' },
-    { onConflict: 'id' }
-  )
+  // Never touch role on existing profiles (an admin's email typed here must
+  // not demote them); only brand-new profiles default to 'user'.
+  if (existing) {
+    if (fullName) {
+      await (svc.from('profiles') as any).update({ full_name: fullName }).eq('id', userId)
+    }
+  } else {
+    await (svc.from('profiles') as any).upsert(
+      { id: userId, email, ...(fullName ? { full_name: fullName } : {}), role: 'user' },
+      { onConflict: 'id' }
+    )
+  }
 
   if (productId) {
     const { error } = await svc.from('user_product_access').upsert({

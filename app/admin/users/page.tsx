@@ -163,7 +163,7 @@ export default async function AdminUsersPage() {
                       {grantable.length > 0 && (
                         <form action={grantProduct} style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
                           <input type="hidden" name="user_id" value={p.id} />
-                          <select name="product_id" defaultValue="" style={{ ...inputSm, maxWidth: 160 }}>
+                          <select name="product_id" required defaultValue="" style={{ ...inputSm, maxWidth: 160 }}>
                             <option value="">+ Grant program…</option>
                             {grantable.map((prod) => <option key={prod.id} value={prod.id}>{prod.title}</option>)}
                           </select>

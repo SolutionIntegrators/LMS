@@ -31,6 +31,16 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  // Redirects must carry any refreshed auth cookies or rotated refresh
+  // tokens get lost and users are spuriously logged out.
+  function redirectTo(path: string) {
+    const url = request.nextUrl.clone()
+    url.pathname = path
+    const res = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((c) => res.cookies.set(c))
+    return res
+  }
+
   // Public paths that don't require auth
   const isPublicPath =
     pathname === '/login' ||
@@ -38,37 +48,17 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/api/')
 
-  if (!user && !isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  if (!user && !isPublicPath) return redirectTo('/login')
 
-  if (user && pathname === '/login') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
+  if (user && pathname === '/login') return redirectTo('/dashboard')
 
   // Root → dashboard, /admin → /admin/content
-  if (user && pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
+  if (user && pathname === '/') return redirectTo('/dashboard')
 
-  if (user && pathname === '/admin') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/content'
-    return NextResponse.redirect(url)
-  }
+  if (user && pathname === '/admin') return redirectTo('/admin/content')
 
   // Manage Access was merged into the Users page
-  if (user && pathname === '/admin/access') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/users'
-    return NextResponse.redirect(url)
-  }
+  if (user && pathname === '/admin/access') return redirectTo('/admin/users')
 
   return supabaseResponse
 }

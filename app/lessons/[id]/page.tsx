@@ -36,10 +36,10 @@ export default async function LessonPage({
   // Cast: content_blocks is newer than the generated DB types.
   const { data: lesson } = await (supabase.from('lessons') as any)
     .select(`
-      id, title, description, content_type, content_url, sort_order, required_tag, is_preview, content_blocks,
+      id, title, description, content_type, content_url, sort_order, required_tag, is_preview, is_published, content_blocks,
       modules (
         id, title, product_id, required_tag,
-        products (id, title, slug)
+        products (id, title, slug, is_active)
       )
     `)
     .eq('id', id)
@@ -51,18 +51,15 @@ export default async function LessonPage({
   const product = mod?.products as any
   const lessonData = lesson as any
 
-  // Check product access — is_preview lessons bypass the purchase check
-  if (profileData?.role !== 'admin' && !lessonData.is_preview) {
-    const { data: access } = await supabase
-      .from('user_product_access')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('product_id', product?.id ?? '')
-      .single()
+  const isAdminUser = profileData?.role === 'admin'
 
-    if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
+  if (!isAdminUser) {
+    // Drafts and content of inactive products are never visible to students.
+    if (!lessonData.is_published || product?.is_active === false) {
+      return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>This lesson isn&apos;t available.</div>
+    }
 
-    // Check required tag — on the lesson itself or its module
+    // Tag gates (module and lesson) always apply — even to preview lessons.
     const requiredTag: string | null = lessonData.required_tag ?? null
     const moduleTag: string | null = mod?.required_tag ?? null
     if (requiredTag || moduleTag) {
@@ -72,6 +69,18 @@ export default async function LessonPage({
       if (!lessonOk || !moduleOk) {
         return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>This lesson is not included in your plan.</div>
       }
+    }
+
+    // Purchase check — free-preview lessons bypass only this.
+    if (!lessonData.is_preview) {
+      const { data: access } = await supabase
+        .from('user_product_access')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_id', product?.id ?? '')
+        .single()
+
+      if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
     }
   }
 
@@ -94,12 +103,14 @@ export default async function LessonPage({
     })
   }
 
-  // Fetch sibling lessons for prev/next nav
-  const { data: siblingLessons } = await supabase
+  // Fetch sibling lessons for prev/next nav (students only see published ones)
+  let siblingQuery = supabase
     .from('lessons')
     .select('id, title, sort_order')
     .eq('module_id', mod?.id)
     .order('sort_order')
+  if (!isAdminUser) siblingQuery = siblingQuery.eq('is_published', true)
+  const { data: siblingLessons } = await siblingQuery
 
   const currentIndex = (siblingLessons ?? []).findIndex((l) => l.id === id)
   const prevLesson = currentIndex > 0 ? siblingLessons![currentIndex - 1] : null
@@ -148,6 +159,7 @@ export default async function LessonPage({
             moduleId={mod?.id}
             description={lesson.description}
             hasBlocks={parseBlocks((lesson as any).content_blocks).length > 0}
+            previewMode={preview}
           >
             <LessonBlocks blocks={parseBlocks((lesson as any).content_blocks)} />
           </LessonPlayer>

@@ -23,14 +23,24 @@ export default function Footer() {
         }}
       >
         <span>© {year} Solution Integrators. All rights reserved.</span>
-        <a
-          href="https://solutionintegrators.us/digital-product-terms-and-conditions"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none', fontWeight: 500 }}
-        >
-          Digital Product Terms &amp; Conditions
-        </a>
+        <span style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <a
+            href="https://solutionintegrators.us/shop"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none', fontWeight: 600 }}
+          >
+            Want more goodies? Visit the shop →
+          </a>
+          <a
+            href="https://solutionintegrators.us/digital-product-terms-and-conditions"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--si-burnt-orange)', textDecoration: 'none', fontWeight: 500 }}
+          >
+            Digital Product Terms &amp; Conditions
+          </a>
+        </span>
       </div>
     </footer>
   )

@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SI Goodies Shop LMS
 
-## Getting Started
+The Solution Integrators learning portal — students access purchased digital
+products (courses, templates, workshops) at
+**https://goodies.solutionintegrators.us**.
 
-First, run the development server:
+Next.js 15 (App Router, edge runtime) on **Cloudflare Pages**, with
+**Supabase** (Postgres + Auth + Storage). Purchases flow in via ThriveCart /
+Zapier webhooks and are mirrored to an Airtable reporting hub. Auth emails are
+branded and sent from connect@solutionintegrators.us via Resend.
+
+## Documentation
+
+- **[docs/ADMIN-GUIDE.md](docs/ADMIN-GUIDE.md)** — admin SOPs: products,
+  content, tags/gating, users & invites, purchases, monitoring, plus an
+  ops/architecture quick reference.
+- **[docs/EMAIL.md](docs/EMAIL.md)** — email/Resend setup, templates,
+  troubleshooting.
+- **[docs/email-templates/](docs/email-templates/)** — branded auth email
+  HTML (source of truth; pasted into Supabase dashboard).
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx next dev            # local dev against the same Supabase project (.env.local)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` (gitignored) holds NEXT_PUBLIC_SUPABASE_URL / ANON_KEY,
+SUPABASE_SERVICE_ROLE_KEY, THRIVECART_WEBHOOK_SECRET, AIRTABLE_TOKEN.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx @cloudflare/next-on-pages
+npx wrangler pages deploy .vercel/output/static --project-name=lms
+```
 
-## Learn More
+### Edge-runtime rules (Cloudflare Pages)
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Do **not** use `redirect()` / `notFound()` from next/navigation in render
+  paths — they throw into the error boundary on CF Pages. Use middleware
+  redirects or client-side navigation.
+- No event handlers on elements inside Server Components — extract a
+  `'use client'` component.
+- New Cloudflare secrets only appear after the **next deploy**.

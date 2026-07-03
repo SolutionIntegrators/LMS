@@ -26,9 +26,10 @@ async function at(path: string, init?: RequestInit): Promise<any> {
   return res.json()
 }
 
-// Escape a value for use inside an Airtable filterByFormula string literal.
+// Sanitize a value for an Airtable filterByFormula string literal. Airtable
+// formulas don't support backslash escapes, so strip quotes outright.
 function esc(v: string) {
-  return v.replace(/'/g, "\\'")
+  return v.replace(/['"\\]/g, '')
 }
 
 async function findRecord(table: string, formula: string): Promise<string | null> {

@@ -1,6 +1,0 @@
-name = "si-purchase-webhook"
-main = "purchase-webhook.js"
-compatibility_date = "2024-01-01"
-
-# Add these secrets via: wrangler secret put SUPABASE_URL, etc.
-# Never put secret values in this file.
