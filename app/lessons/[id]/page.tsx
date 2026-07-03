@@ -38,7 +38,7 @@ export default async function LessonPage({
     .select(`
       id, title, description, content_type, content_url, sort_order, required_tag, is_preview, content_blocks,
       modules (
-        id, title, product_id,
+        id, title, product_id, required_tag,
         products (id, title, slug)
       )
     `)
@@ -62,10 +62,14 @@ export default async function LessonPage({
 
     if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
 
-    // Check required tag
-    if (lessonData.required_tag) {
+    // Check required tag — on the lesson itself or its module
+    const requiredTag: string | null = lessonData.required_tag ?? null
+    const moduleTag: string | null = mod?.required_tag ?? null
+    if (requiredTag || moduleTag) {
       const userTags: string[] = profileData?.tags ?? []
-      if (!userTags.includes(lessonData.required_tag)) {
+      const lessonOk = !requiredTag || userTags.includes(requiredTag)
+      const moduleOk = !moduleTag || userTags.includes(moduleTag)
+      if (!lessonOk || !moduleOk) {
         return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>This lesson is not included in your plan.</div>
       }
     }

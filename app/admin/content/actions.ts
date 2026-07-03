@@ -73,8 +73,9 @@ export async function updateModule(formData: FormData) {
   const title = formData.get('title') as string
   const thumbnail_url = (formData.get('thumbnail_url') as string) || null
   const thumbnail_color = (formData.get('thumbnail_color') as string) || null
+  const required_tag = ((formData.get('required_tag') as string) || '').trim().toLowerCase() || null
 
-  const { error } = await (db.from('modules') as any).update({ title, thumbnail_url, thumbnail_color }).eq('id', id)
+  const { error } = await (db.from('modules') as any).update({ title, thumbnail_url, thumbnail_color, required_tag }).eq('id', id)
   if (error) throw new Error(error.message)
 }
 

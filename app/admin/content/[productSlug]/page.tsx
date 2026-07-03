@@ -136,6 +136,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 <input type="color" name="thumbnail_color" defaultValue={(mod as any).thumbnail_color ?? '#2C4A7C'}
                   title="Thumbnail color"
                   style={{ height: 34, width: 44, padding: '0.1rem 0.2rem', border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', cursor: 'pointer' }} />
+                <input name="required_tag" defaultValue={(mod as any).required_tag ?? ''}
+                  placeholder="Required tag (optional)"
+                  title="Only students whose profile has this tag can see this module"
+                  style={{ ...inputStyle, flex: '0 1 150px', fontSize: '0.8rem' }} />
                 <button type="submit" style={btnSm}>Save</button>
               </form>
 

@@ -21,11 +21,12 @@ export default async function ProductPage({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('email, full_name, role')
+    .select('email, full_name, role, tags')
     .eq('id', user.id)
     .single()
 
   const isAdmin = profile?.role === 'admin'
+  const userTags: string[] = (profile as any)?.tags ?? []
   const preview = previewParam === '1' && isAdmin
 
   // Verify access. Admins may view inactive (draft) products so they can preview
@@ -50,14 +51,20 @@ export default async function ProductPage({
   if (!access && !isAdmin) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this product.</div>
 
   // Fetch modules with lessons
-  const { data: modules } = await supabase
-    .from('modules')
+  // Cast: modules.required_tag is newer than the generated DB types.
+  const { data: allModules } = await (supabase.from('modules') as any)
     .select(`
-      id, title, description, sort_order,
+      id, title, description, sort_order, required_tag,
       lessons (id, title, content_type, sort_order, is_preview)
     `)
     .eq('product_id', product.id)
     .order('sort_order')
+
+  // Tag-gated modules are hidden from students without the tag.
+  // Admins see everything (preview shows a badge on gated modules).
+  const modules = (allModules ?? []).filter((m: any) =>
+    isAdmin || !m.required_tag || userTags.includes(m.required_tag)
+  )
 
   // Fetch completions
   const { data: completions } = await supabase
@@ -67,8 +74,8 @@ export default async function ProductPage({
 
   const completedIds = new Set((completions ?? []).map((c) => c.lesson_id))
 
-  const totalLessons = (modules ?? []).reduce((acc, m) => acc + (m.lessons?.length ?? 0), 0)
-  const completedCount = (modules ?? []).flatMap((m) => m.lessons ?? []).filter((l) => completedIds.has(l.id)).length
+  const totalLessons = (modules ?? []).reduce((acc: number, m: any) => acc + (m.lessons?.length ?? 0), 0)
+  const completedCount = (modules ?? []).flatMap((m: any) => m.lessons ?? []).filter((l: any) => completedIds.has(l.id)).length
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
 
   // Log product access — skip in preview mode so admin previews don't pollute analytics
@@ -127,7 +134,7 @@ export default async function ProductPage({
       {/* Modules */}
       <main style={{ maxWidth: 900, margin: '0 auto', padding: '3rem 1.5rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {(modules ?? []).map((mod, modIndex) => {
+          {(modules ?? []).map((mod: any, modIndex: number) => {
             const lessons = [...(mod.lessons ?? [])].sort((a, b) => a.sort_order - b.sort_order)
             const modCompleted = lessons.filter((l) => completedIds.has(l.id)).length
             return (
@@ -141,6 +148,11 @@ export default async function ProductPage({
                     <div>
                       <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '1rem', color: 'var(--si-dark-text)', marginBottom: 2 }}>
                         {mod.title}
+                        {isAdmin && (mod as any).required_tag && (
+                          <span style={{ marginLeft: 8, background: 'var(--si-linen-dark)', color: 'var(--si-denim-blue)', fontSize: '0.68rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: 4, verticalAlign: 'middle' }}>
+                            🔒 {(mod as any).required_tag}
+                          </span>
+                        )}
                       </h2>
                       {mod.description && (
                         <p style={{ color: 'var(--si-muted)', fontSize: '0.8125rem' }}>{mod.description}</p>
