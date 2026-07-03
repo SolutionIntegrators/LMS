@@ -63,6 +63,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Manage Access was merged into the Users page
+  if (user && pathname === '/admin/access') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/users'
+    return NextResponse.redirect(url)
+  }
+
   return supabaseResponse
 }
 
