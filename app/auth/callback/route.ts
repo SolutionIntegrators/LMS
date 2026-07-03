@@ -8,9 +8,11 @@ import { cookies } from 'next/headers'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const tokenHash = searchParams.get('token_hash')
+  const otpType = searchParams.get('type')
   const next = searchParams.get('next') ?? '/dashboard'
 
-  if (code) {
+  if (code || tokenHash) {
     const cookieStore = await cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,7 +29,11 @@ export async function GET(request: Request) {
       }
     )
 
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    // PKCE flow (login-page magic links) uses ?code; email templates
+    // (invite/confirm/recovery/magiclink) link with ?token_hash&type.
+    const { data, error } = code
+      ? await supabase.auth.exchangeCodeForSession(code)
+      : await supabase.auth.verifyOtp({ type: (otpType as any) ?? 'magiclink', token_hash: tokenHash! })
 
     if (!error && data.user) {
       // Upsert profile and update last_login_at
