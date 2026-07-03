@@ -56,7 +56,7 @@ export default function ProductCard({ product }: Props) {
               borderRadius: 4,
             }}
           >
-            Program
+            Goodie
           </span>
         </div>
 
@@ -102,7 +102,7 @@ export default function ProductCard({ product }: Props) {
               textTransform: 'uppercase',
             }}
           >
-            Open program →
+            Open goodie →
           </div>
         </div>
       </div>
