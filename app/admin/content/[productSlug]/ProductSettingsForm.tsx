@@ -43,6 +43,11 @@ export default function ProductSettingsForm({ product }: { product: any }) {
         </label>
       </div>
 
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 320 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Category</span>
+        <input name="category" defaultValue={product.category ?? ''} placeholder="e.g. Dubsado, Airtable…" style={inputStyle} />
+      </label>
+
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Description</span>
         <textarea name="description" defaultValue={product.description ?? ''} rows={2}

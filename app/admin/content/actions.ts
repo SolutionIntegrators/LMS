@@ -23,6 +23,7 @@ export async function createProduct(formData: FormData) {
   const title = formData.get('title') as string
   const description = (formData.get('description') as string) || null
   const thrivecart_product_id = (formData.get('thrivecart_product_id') as string) || null
+  const category = ((formData.get('category') as string) || '').trim() || null
 
   // Slug must be unique and non-empty: fall back for symbol-only titles and
   // suffix -2, -3… when the slug is already taken.
@@ -32,7 +33,16 @@ export async function createProduct(formData: FormData) {
   let slug = base
   for (let n = 2; takenSet.has(slug); n++) slug = `${base}-${n}`
 
-  const { error } = await db.from('products').insert({ title, slug, description, thrivecart_product_id, is_active: false })
+  const { error } = await (db.from('products') as any).insert({ title, slug, description, thrivecart_product_id, is_active: false, category })
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/content')
+}
+
+export async function setProductCategory(formData: FormData) {
+  const db = await getAdminClient()
+  const id = formData.get('id') as string
+  const category = ((formData.get('category') as string) || '').trim() || null
+  const { error } = await (db.from('products') as any).update({ category }).eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/content')
 }
@@ -48,9 +58,10 @@ export async function updateProduct(formData: FormData) {
   const thumbnail_color = (formData.get('thumbnail_color') as string) || null
   const auto_grant_tags = ((formData.get('auto_grant_tags') as string) || '')
     .split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+  const category = ((formData.get('category') as string) || '').trim() || null
 
   const { error } = await (db.from('products') as any).update({
-    title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags,
+    title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
   }).eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/content')
