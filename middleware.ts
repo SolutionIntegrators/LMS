@@ -46,7 +46,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/login' ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/_next/') ||
-    pathname.startsWith('/api/')
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/r/') // affiliate tracking links
 
   if (!user && !isPublicPath) return redirectTo('/login')
 
