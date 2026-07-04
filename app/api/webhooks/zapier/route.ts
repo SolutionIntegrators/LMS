@@ -11,13 +11,14 @@ import { pushSaleToAirtable } from '@/lib/airtable'
 //   product_slug     "house-of-lume-dubsado-proposal"          grant product access (a full path like /products/… is ok)
 //   product_id       "72"                                      alternative to product_slug (ThriveCart ID)
 //   tags             "lumebundle" or "lumebundle, vip"         add tag(s) to the profile — e.g. an add-on that unlocks gated modules
+//   product_name     "House of Lume | Collection Bundle"       label for a tag-only add-on sale in Airtable (ignored if a product matched)
 //   full_name        "Jane Smith"                              optional
 //   transaction_ref  "dubsado-invoice-770"                     optional, for your records
-//   amount           "1000.00"                                 optional, mirrored to Airtable for product sales
+//   amount           "1000.00"                                 optional, mirrored to Airtable as the sale amount
 //
 // Examples:
-//   Base purchase:  { email, product_slug: "house-of-lume-dubsado-proposal" }
-//   Bundle add-on:  { email, tags: "lumebundle" }                (no product — just the tag)
+//   Base purchase:  { email, product_slug: "house-of-lume-dubsado-proposal", amount: "1000" }
+//   Bundle add-on:  { email, tags: "lumebundle", product_name: "House of Lume | Collection Bundle", amount: "500" }
 //   Product + tag:  { email, product_slug: "…", tags: "vip" }
 
 export async function POST(request: Request) {
@@ -82,6 +83,10 @@ export async function POST(request: Request) {
     .replace(/^\/+|\/+$/g, '')
   const fullName: string = pick('full_name', 'fullname', 'name', 'customername')
   const transactionRef: string = pick('transaction_ref', 'invoice', 'invoicenumber', 'orderid')
+  // Optional label for the thing purchased — used as the Airtable sale/product
+  // name for tag-only add-ons that have no LMS product (e.g. "House of Lume |
+  // Collection Bundle"). Ignored when a real product was matched.
+  const productName: string = pick('product_name', 'productname', 'product', 'offer', 'item')
 
   // Optional explicit tags: accepts a comma-separated string ("lumebundle, vip")
   // or an array. Used for add-ons that grant a tag rather than a product — e.g.
@@ -173,14 +178,17 @@ export async function POST(request: Request) {
     metadata: { source: 'zapier', email, transaction_ref: transactionRef, full_name: fullName, tags: tagsToAdd },
   })
 
-  // Mirror the sale into the Airtable Digital Product Hub (best-effort). Only
-  // product purchases are logged as sales; tag-only add-ons are skipped there.
-  if (product) {
+  // Mirror the sale into the Airtable Digital Product Hub (best-effort).
+  // Records a product purchase (named from the LMS product) OR a tag-only
+  // add-on (named from product_name in the payload). If neither a product nor
+  // a product_name is present, there's nothing to name the sale, so skip.
+  const saleName = product?.title || productName
+  if (saleName) {
     const amountRaw = pick('amount', 'total', 'price', 'invoicetotal')
     await pushSaleToAirtable({
       email,
       fullName: fullName || null,
-      productName: product.title,
+      productName: saleName,
       thrivecartId: productId || null,
       lmsSlug: productSlug || null,
       amount: amountRaw !== '' && !isNaN(Number(amountRaw)) ? Number(amountRaw) : null,
