@@ -28,58 +28,72 @@ export async function POST(request: Request) {
   if (!secret) return new Response('ZAPIER_WEBHOOK_SECRET not configured', { status: 500 })
   if (apiKey !== secret) return new Response('Unauthorized', { status: 401 })
 
-  // Accept JSON, form-encoded, or query-string bodies — Zapier's "Webhooks"
-  // action can send any of these depending on its Payload Type setting, so we
-  // parse defensively instead of assuming JSON.
+  // Parse the body defensively — Zapier can send JSON, urlencoded, multipart,
+  // or query-string depending on how the action is configured.
   const url = new URL(request.url)
-  const raw = await request.text()
+  const ct = (request.headers.get('content-type') || '').toLowerCase()
   let body: Record<string, any> = {}
 
-  // 1) Try JSON
-  if (raw.trim().startsWith('{')) {
-    try { body = JSON.parse(raw) } catch { /* fall through */ }
-  }
-  // 2) A single stringified-JSON key (a common Zapier form-mode misconfig)
-  if (!body.email && !body.product_slug && !body.product_id) {
+  if (ct.includes('multipart/form-data') || ct.includes('application/x-www-form-urlencoded')) {
+    // formData() handles both urlencoded and multipart.
+    try {
+      const fd = await request.formData()
+      fd.forEach((v, k) => { body[k] = typeof v === 'string' ? v : '' })
+    } catch { /* fall through to empty */ }
+  } else {
+    const raw = await request.text()
+    if (raw.trim().startsWith('{') || raw.trim().startsWith('[')) {
+      try { body = JSON.parse(raw) } catch { /* fall through */ }
+    }
+    // A single stringified-JSON key (a common Zapier form-mode misconfig)
     const keys = Object.keys(body)
     if (keys.length === 1 && keys[0].trim().startsWith('{')) {
       try { body = JSON.parse(keys[0]) } catch { /* fall through */ }
     }
+    // Bare form-encoded body (no/other content-type but looks like a=b&c=d)
+    if (Object.keys(body).length === 0 && raw.includes('=')) {
+      try {
+        const form = new URLSearchParams(raw)
+        form.forEach((v, k) => { body[k] = v })
+      } catch { /* fall through */ }
+    }
   }
-  // 3) Form-encoded body
-  if (!body.email && raw.includes('=')) {
-    try {
-      const form = new URLSearchParams(raw)
-      const obj: Record<string, string> = {}
-      form.forEach((v, k) => { obj[k] = v })
-      if (obj.email || obj.product_slug || obj.product_id) body = obj
-    } catch { /* fall through */ }
-  }
-  // 4) Query-string fallback (?email=…&product_slug=…)
+  // Query-string fallback / override for anything still missing.
   url.searchParams.forEach((v, k) => { if (body[k] == null || body[k] === '') body[k] = v })
 
-  const email: string = String(body.email ?? '').trim()
-  const productId: string = String(body.product_id ?? '').trim()
+  // Case- and punctuation-insensitive field lookup so "Email", "product slug",
+  // "productSlug", "Full Name" etc. from Zapier field mappings all resolve.
+  const flat: Record<string, any> = {}
+  for (const [k, v] of Object.entries(body)) flat[k.toLowerCase().replace(/[^a-z0-9]/g, '')] = v
+  const pick = (...names: string[]): string => {
+    for (const n of names) {
+      const v = flat[n.toLowerCase().replace(/[^a-z0-9]/g, '')]
+      if (v != null && String(v).trim() !== '') return String(v).trim()
+    }
+    return ''
+  }
+
+  const email: string = pick('email', 'emailaddress', 'buyeremail', 'customeremail')
+  const productId: string = pick('product_id', 'thrivecart_product_id')
   // Normalize the slug: accept a full path like "/products/foo" or "foo/".
-  const productSlug: string = String(body.product_slug ?? '')
-    .trim()
+  const productSlug: string = pick('product_slug', 'slug', 'productslug')
     .replace(/^https?:\/\/[^/]+/i, '')
     .replace(/^\/?products\//i, '')
     .replace(/^\/+|\/+$/g, '')
-  const fullName: string = String(body.full_name ?? '').trim()
-  const transactionRef: string = String(body.transaction_ref ?? '').trim()
+  const fullName: string = pick('full_name', 'fullname', 'name', 'customername')
+  const transactionRef: string = pick('transaction_ref', 'invoice', 'invoicenumber', 'orderid')
 
   // Optional explicit tags: accepts a comma-separated string ("lumebundle, vip")
   // or an array. Used for add-ons that grant a tag rather than a product — e.g.
   // buying the Collection Bundle add-on adds "lumebundle" to unlock gated modules.
-  const rawTags = body.tags
+  const rawTags = flat['tags'] ?? flat['tag']
   const explicitTags: string[] = (Array.isArray(rawTags) ? rawTags : String(rawTags ?? '').split(','))
     .map((t: string) => String(t).trim().toLowerCase())
     .filter(Boolean)
 
   if (!email) {
     return new Response(
-      JSON.stringify({ error: 'email is required', received_keys: Object.keys(body) }),
+      JSON.stringify({ error: 'email is required', received_keys: Object.keys(body), content_type: ct || '(none)' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     )
   }
@@ -162,14 +176,14 @@ export async function POST(request: Request) {
   // Mirror the sale into the Airtable Digital Product Hub (best-effort). Only
   // product purchases are logged as sales; tag-only add-ons are skipped there.
   if (product) {
-    const amountRaw = (body as any).amount
+    const amountRaw = pick('amount', 'total', 'price', 'invoicetotal')
     await pushSaleToAirtable({
       email,
       fullName: fullName || null,
       productName: product.title,
       thrivecartId: productId || null,
       lmsSlug: productSlug || null,
-      amount: amountRaw != null && amountRaw !== '' ? Number(amountRaw) : null,
+      amount: amountRaw !== '' && !isNaN(Number(amountRaw)) ? Number(amountRaw) : null,
       source: 'Zapier',
       transactionRef,
     })
