@@ -3,17 +3,22 @@ export const runtime = 'edge'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 
-// Zapier sends a POST with JSON body.
-// Auth: include ZAPIER_WEBHOOK_SECRET as x-api-key header in the Zapier request.
+// Zapier POST. Auth: send ZAPIER_WEBHOOK_SECRET as the x-api-key header.
+// Body may be JSON, form-encoded, or query-string.
 //
-// Expected body:
-// {
-//   "email": "customer@example.com",
-//   "product_id": "72",          // ThriveCart product ID — OR use product_slug below
-//   "product_slug": "diagnose-your-biz-systems",  // alternative to product_id
-//   "full_name": "Jane Smith",   // optional
-//   "transaction_ref": "dubsado-invoice-123"  // optional, for your records
-// }
+// Fields (email required; then a product, or tags, or both):
+//   email            "customer@example.com"                    (required)
+//   product_slug     "house-of-lume-dubsado-proposal"          grant product access (a full path like /products/… is ok)
+//   product_id       "72"                                      alternative to product_slug (ThriveCart ID)
+//   tags             "lumebundle" or "lumebundle, vip"         add tag(s) to the profile — e.g. an add-on that unlocks gated modules
+//   full_name        "Jane Smith"                              optional
+//   transaction_ref  "dubsado-invoice-770"                     optional, for your records
+//   amount           "1000.00"                                 optional, mirrored to Airtable for product sales
+//
+// Examples:
+//   Base purchase:  { email, product_slug: "house-of-lume-dubsado-proposal" }
+//   Bundle add-on:  { email, tags: "lumebundle" }                (no product — just the tag)
+//   Product + tag:  { email, product_slug: "…", tags: "vip" }
 
 export async function POST(request: Request) {
   // Auth
@@ -64,30 +69,42 @@ export async function POST(request: Request) {
   const fullName: string = String(body.full_name ?? '').trim()
   const transactionRef: string = String(body.transaction_ref ?? '').trim()
 
+  // Optional explicit tags: accepts a comma-separated string ("lumebundle, vip")
+  // or an array. Used for add-ons that grant a tag rather than a product — e.g.
+  // buying the Collection Bundle add-on adds "lumebundle" to unlock gated modules.
+  const rawTags = body.tags
+  const explicitTags: string[] = (Array.isArray(rawTags) ? rawTags : String(rawTags ?? '').split(','))
+    .map((t: string) => String(t).trim().toLowerCase())
+    .filter(Boolean)
+
   if (!email) {
     return new Response(
       JSON.stringify({ error: 'email is required', received_keys: Object.keys(body) }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     )
   }
-  if (!productId && !productSlug) return new Response('product_id or product_slug is required', { status: 400 })
+  if (!productId && !productSlug && explicitTags.length === 0) {
+    return new Response('product_id, product_slug, or tags is required', { status: 400 })
+  }
 
   const db = createServiceSupabaseClient()
 
-  // Look up product by ThriveCart ID or slug
-  let productQuery = db.from('products').select('id, title, auto_grant_tags')
-  if (productId) {
-    productQuery = productQuery.eq('thrivecart_product_id', productId) as any
-  } else {
-    productQuery = productQuery.eq('slug', productSlug) as any
-  }
-  const { data: product } = await productQuery.single()
-
-  if (!product) {
-    return new Response(
-      JSON.stringify({ error: `No product found for ${productId ? `TC ID ${productId}` : `slug "${productSlug}"`}` }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } }
-    )
+  // Look up product by ThriveCart ID or slug — only if one was provided. A
+  // tags-only call (an add-on with no separate product) skips this.
+  let product: any = null
+  if (productId || productSlug) {
+    let productQuery = db.from('products').select('id, title, auto_grant_tags')
+    productQuery = (productId
+      ? productQuery.eq('thrivecart_product_id', productId)
+      : productQuery.eq('slug', productSlug)) as any
+    const { data } = await productQuery.single()
+    product = data
+    if (!product) {
+      return new Response(
+        JSON.stringify({ error: `No product found for ${productId ? `TC ID ${productId}` : `slug "${productSlug}"`}` }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
   }
 
   // Find or create user
@@ -109,53 +126,62 @@ export async function POST(request: Request) {
     await db.from('profiles').upsert({ id: userId, email, full_name: fullName || null, role: 'user' }, { onConflict: 'id' })
   }
 
-  // Grant access
-  const { error: accessError } = await db.from('user_product_access').upsert({
-    user_id: userId,
-    product_id: product.id,
-    granted_by: 'zapier_webhook',
-    transaction_ref: transactionRef || null,
-    granted_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
+  // Grant product access (only when a product was matched)
+  if (product) {
+    const { error: accessError } = await db.from('user_product_access').upsert({
+      user_id: userId,
+      product_id: product.id,
+      granted_by: 'zapier_webhook',
+      transaction_ref: transactionRef || null,
+      granted_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
 
-  if (accessError) {
-    return new Response(`Failed to grant access: ${accessError.message}`, { status: 500 })
+    if (accessError) {
+      return new Response(`Failed to grant access: ${accessError.message}`, { status: 500 })
+    }
   }
 
-  // Apply auto-grant tags from the product config (parity with the ThriveCart route,
-  // so tag-gated modules unlock no matter which webhook granted the purchase).
-  const autoGrantTags: string[] = (product as any).auto_grant_tags ?? []
-  if (autoGrantTags.length > 0) {
+  // Apply tags: the product's own auto_grant_tags PLUS any explicit tags in the
+  // payload. Merged into one update so tag-gated modules unlock regardless of
+  // whether a product was purchased.
+  const tagsToAdd = [...new Set([...(product?.auto_grant_tags ?? []), ...explicitTags])] as string[]
+  if (tagsToAdd.length > 0) {
     const { data: profileData } = await (db as any).from('profiles').select('tags').eq('id', userId).single()
     const existingTags: string[] = profileData?.tags ?? []
-    const mergedTags = [...new Set([...existingTags, ...autoGrantTags])]
+    const mergedTags = [...new Set([...existingTags, ...tagsToAdd])]
     await (db as any).from('profiles').update({ tags: mergedTags }).eq('id', userId)
   }
 
   await db.from('activity_logs').insert({
     user_id: userId,
-    product_id: product.id,
-    event_type: 'purchase',
-    metadata: { source: 'zapier', email, transaction_ref: transactionRef, full_name: fullName },
+    product_id: product?.id ?? null,
+    event_type: product ? 'purchase' : 'tag_grant',
+    metadata: { source: 'zapier', email, transaction_ref: transactionRef, full_name: fullName, tags: tagsToAdd },
   })
 
-  // Mirror the sale into the Airtable Digital Product Hub (best-effort)
-  const amountRaw = (body as any).amount
-  await pushSaleToAirtable({
-    email,
-    fullName: fullName || null,
-    productName: (product as any).title,
-    thrivecartId: productId || null,
-    lmsSlug: productSlug || null,
-    amount: amountRaw != null && amountRaw !== '' ? Number(amountRaw) : null,
-    source: 'Zapier',
-    transactionRef,
-  })
+  // Mirror the sale into the Airtable Digital Product Hub (best-effort). Only
+  // product purchases are logged as sales; tag-only add-ons are skipped there.
+  if (product) {
+    const amountRaw = (body as any).amount
+    await pushSaleToAirtable({
+      email,
+      fullName: fullName || null,
+      productName: product.title,
+      thrivecartId: productId || null,
+      lmsSlug: productSlug || null,
+      amount: amountRaw != null && amountRaw !== '' ? Number(amountRaw) : null,
+      source: 'Zapier',
+      transactionRef,
+    })
+  }
 
   return Response.json({
     ok: true,
-    message: `Access granted: ${email} → ${product.title}`,
+    message: product
+      ? `Access granted: ${email} → ${product.title}${tagsToAdd.length ? ` (tags: ${tagsToAdd.join(', ')})` : ''}`
+      : `Tags added: ${email} → ${tagsToAdd.join(', ')}`,
     user_id: userId,
-    product_id: product.id,
+    product_id: product?.id ?? null,
+    tags_added: tagsToAdd,
   })
 }
