@@ -23,20 +23,53 @@ export async function POST(request: Request) {
   if (!secret) return new Response('ZAPIER_WEBHOOK_SECRET not configured', { status: 500 })
   if (apiKey !== secret) return new Response('Unauthorized', { status: 401 })
 
-  let body: any
-  try {
-    body = await request.json()
-  } catch {
-    return new Response('Invalid JSON', { status: 400 })
+  // Accept JSON, form-encoded, or query-string bodies — Zapier's "Webhooks"
+  // action can send any of these depending on its Payload Type setting, so we
+  // parse defensively instead of assuming JSON.
+  const url = new URL(request.url)
+  const raw = await request.text()
+  let body: Record<string, any> = {}
+
+  // 1) Try JSON
+  if (raw.trim().startsWith('{')) {
+    try { body = JSON.parse(raw) } catch { /* fall through */ }
   }
+  // 2) A single stringified-JSON key (a common Zapier form-mode misconfig)
+  if (!body.email && !body.product_slug && !body.product_id) {
+    const keys = Object.keys(body)
+    if (keys.length === 1 && keys[0].trim().startsWith('{')) {
+      try { body = JSON.parse(keys[0]) } catch { /* fall through */ }
+    }
+  }
+  // 3) Form-encoded body
+  if (!body.email && raw.includes('=')) {
+    try {
+      const form = new URLSearchParams(raw)
+      const obj: Record<string, string> = {}
+      form.forEach((v, k) => { obj[k] = v })
+      if (obj.email || obj.product_slug || obj.product_id) body = obj
+    } catch { /* fall through */ }
+  }
+  // 4) Query-string fallback (?email=…&product_slug=…)
+  url.searchParams.forEach((v, k) => { if (body[k] == null || body[k] === '') body[k] = v })
 
-  const email: string = body.email ?? ''
-  const productId: string = String(body.product_id ?? '')
-  const productSlug: string = body.product_slug ?? ''
-  const fullName: string = body.full_name ?? ''
-  const transactionRef: string = body.transaction_ref ?? ''
+  const email: string = String(body.email ?? '').trim()
+  const productId: string = String(body.product_id ?? '').trim()
+  // Normalize the slug: accept a full path like "/products/foo" or "foo/".
+  const productSlug: string = String(body.product_slug ?? '')
+    .trim()
+    .replace(/^https?:\/\/[^/]+/i, '')
+    .replace(/^\/?products\//i, '')
+    .replace(/^\/+|\/+$/g, '')
+  const fullName: string = String(body.full_name ?? '').trim()
+  const transactionRef: string = String(body.transaction_ref ?? '').trim()
 
-  if (!email) return new Response('email is required', { status: 400 })
+  if (!email) {
+    return new Response(
+      JSON.stringify({ error: 'email is required', received_keys: Object.keys(body) }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
   if (!productId && !productSlug) return new Response('product_id or product_slug is required', { status: 400 })
 
   const db = createServiceSupabaseClient()
