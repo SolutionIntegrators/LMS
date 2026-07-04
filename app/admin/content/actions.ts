@@ -75,6 +75,125 @@ export async function deleteProduct(formData: FormData) {
   revalidatePath('/admin/content')
 }
 
+// ── Duplication ───────────────────────────────────────────
+// Deep-copies preserve content but never carry over unique identifiers
+// (slug, ThriveCart ID) and default the new top-level item to draft/inactive
+// so a copy is never accidentally live before you've edited it.
+
+// Copy every lesson from one module into another, preserving order + content.
+async function copyLessons(db: any, fromModuleId: string, toModuleId: string) {
+  const { data: lessons } = await db.from('lessons').select('*').eq('module_id', fromModuleId).order('sort_order')
+  if (!lessons?.length) return
+  const rows = lessons.map((l: any) => ({
+    module_id: toModuleId,
+    title: l.title,
+    description: l.description,
+    content_type: l.content_type,
+    content_url: l.content_url,
+    content_blocks: l.content_blocks,
+    required_tag: l.required_tag,
+    is_preview: l.is_preview,
+    is_published: l.is_published,
+    sort_order: l.sort_order,
+  }))
+  const { error } = await db.from('lessons').insert(rows)
+  if (error) throw new Error(error.message)
+}
+
+export async function duplicateProduct(formData: FormData) {
+  const db = await getAdminClient()
+  const id = formData.get('id') as string
+  const { data: src } = await (db.from('products') as any).select('*').eq('id', id).single()
+  if (!src) throw new Error('Product not found')
+
+  const newTitle = `${src.title} (copy)`
+  const base = toSlug(newTitle) || 'product'
+  const { data: taken } = await db.from('products').select('slug').like('slug', `${base}%`)
+  const takenSet = new Set((taken ?? []).map((r: any) => r.slug))
+  let slug = base
+  for (let n = 2; takenSet.has(slug); n++) slug = `${base}-${n}`
+
+  const { data: newProduct, error } = await (db.from('products') as any).insert({
+    title: newTitle,
+    slug,
+    description: src.description,
+    category: src.category,
+    cover_image_url: src.cover_image_url,
+    thumbnail_url: src.thumbnail_url,
+    thumbnail_color: src.thumbnail_color,
+    thrivecart_product_id: null, // unique — never copy
+    auto_grant_tags: src.auto_grant_tags,
+    is_active: false, // new copy starts hidden until reviewed
+  }).select('id').single()
+  if (error) throw new Error(error.message)
+
+  const { data: modules } = await db.from('modules').select('*').eq('product_id', id).order('sort_order')
+  for (const m of (modules ?? []) as any[]) {
+    const { data: newMod, error: modErr } = await (db.from('modules') as any).insert({
+      product_id: newProduct.id,
+      title: m.title,
+      description: m.description,
+      thumbnail_url: m.thumbnail_url,
+      thumbnail_color: m.thumbnail_color,
+      required_tag: m.required_tag,
+      sort_order: m.sort_order,
+    }).select('id').single()
+    if (modErr) throw new Error(modErr.message)
+    await copyLessons(db, m.id, newMod.id)
+  }
+
+  revalidatePath('/admin/content')
+}
+
+export async function duplicateModule(formData: FormData) {
+  const db = await getAdminClient()
+  const id = formData.get('id') as string
+  const { data: m } = await (db.from('modules') as any).select('*').eq('id', id).single()
+  if (!m) throw new Error('Module not found')
+
+  const { data: last } = await db.from('modules').select('sort_order').eq('product_id', m.product_id).order('sort_order', { ascending: false }).limit(1)
+  const sort_order = (last?.[0]?.sort_order ?? 0) + 1
+
+  const { data: newMod, error } = await (db.from('modules') as any).insert({
+    product_id: m.product_id,
+    title: `${m.title} (copy)`,
+    description: m.description,
+    thumbnail_url: m.thumbnail_url,
+    thumbnail_color: m.thumbnail_color,
+    required_tag: m.required_tag,
+    sort_order,
+  }).select('id').single()
+  if (error) throw new Error(error.message)
+
+  await copyLessons(db, id, newMod.id)
+  revalidatePath('/admin/content', 'layout')
+}
+
+export async function duplicateLesson(formData: FormData) {
+  const db = await getAdminClient()
+  const id = formData.get('id') as string
+  const { data: l } = await (db.from('lessons') as any).select('*').eq('id', id).single()
+  if (!l) throw new Error('Lesson not found')
+
+  const { data: last } = await db.from('lessons').select('sort_order').eq('module_id', l.module_id).order('sort_order', { ascending: false }).limit(1)
+  const sort_order = (last?.[0]?.sort_order ?? 0) + 1
+
+  const { error } = await (db.from('lessons') as any).insert({
+    module_id: l.module_id,
+    title: `${l.title} (copy)`,
+    description: l.description,
+    content_type: l.content_type,
+    content_url: l.content_url,
+    content_blocks: l.content_blocks,
+    required_tag: l.required_tag,
+    is_preview: l.is_preview,
+    is_published: false, // copy starts as a draft
+    sort_order,
+  })
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/content', 'layout')
+}
+
 // ── Modules ───────────────────────────────────────────────
 
 export async function createModule(formData: FormData) {

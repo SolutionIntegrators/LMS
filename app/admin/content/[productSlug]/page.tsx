@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
 import {
   createModule, updateModule, deleteModule, reorderModule,
-  deleteLesson, reorderLesson,
+  deleteLesson, reorderLesson, duplicateModule, duplicateLesson,
 } from '../actions'
 import AddLessonForm from './AddLessonForm'
 import ProductSettingsForm from './ProductSettingsForm'
@@ -143,6 +143,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 <button type="submit" style={btnSm}>Save</button>
               </form>
 
+              {/* Duplicate */}
+              <form action={duplicateModule}>
+                <input type="hidden" name="id" value={mod.id} />
+                <button type="submit" style={btnSm} title="Copy this module and all its lessons to the bottom of this product">Duplicate</button>
+              </form>
+
               {/* Delete */}
               <form action={deleteModule}>
                 <input type="hidden" name="id" value={mod.id} />
@@ -199,6 +205,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                     <Link href={`/admin/content/${productSlug}/lessons/${lesson.id}`} style={{ ...btnSm, textDecoration: 'none', display: 'inline-block' }}>
                       Edit
                     </Link>
+
+                    <form action={duplicateLesson}>
+                      <input type="hidden" name="id" value={lesson.id} />
+                      <button type="submit" style={btnSm} title="Duplicate this lesson (saved as a draft)">Duplicate</button>
+                    </form>
 
                     <form action={deleteLesson}>
                       <input type="hidden" name="id" value={lesson.id} />

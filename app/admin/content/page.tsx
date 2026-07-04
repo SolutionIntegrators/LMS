@@ -2,7 +2,7 @@ export const runtime = 'edge'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { createProduct, setProductCategory } from './actions'
+import { createProduct, setProductCategory, duplicateProduct } from './actions'
 
 const cell: React.CSSProperties = { padding: '0.625rem 0.875rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem' }
 const th: React.CSSProperties = { ...cell, color: 'var(--si-muted)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '2px solid var(--si-border)', textAlign: 'left' as const }
@@ -130,9 +130,15 @@ export default async function AdminContentPage() {
                         </form>
                       </td>
                       <td style={{ ...cell, textAlign: 'right' }}>
-                        <Link href={`/admin/content/${p.slug}`} className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}>
-                          Edit →
-                        </Link>
+                        <div style={{ display: 'inline-flex', gap: '0.375rem', alignItems: 'center' }}>
+                          <form action={duplicateProduct}>
+                            <input type="hidden" name="id" value={p.id} />
+                            <button type="submit" style={btnSm} title="Create a full copy (modules + lessons), saved as inactive">Duplicate</button>
+                          </form>
+                          <Link href={`/admin/content/${p.slug}`} className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}>
+                            Edit →
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}
