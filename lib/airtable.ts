@@ -139,6 +139,29 @@ export async function syncAffiliateCodeToPartnerHub(email: string, code: string)
   }
 }
 
+// Write a partner's total referral-click count onto their Backoffice row
+// (matched by Email Address). Best-effort, update-only. Returns true if updated.
+export async function updatePartnerClicks(email: string, clicks: number): Promise<boolean> {
+  if (!token() || !email) return false
+  try {
+    const qs = new URLSearchParams({
+      filterByFormula: `LOWER({Email Address})='${esc(email.toLowerCase())}'`,
+      maxRecords: '1',
+    })
+    const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
+    const rec = found.records?.[0]
+    if (!rec) return false
+    await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}/${rec.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { 'Referral Clicks': clicks } }),
+    })
+    return true
+  } catch (err) {
+    console.error('updatePartnerClicks failed:', err instanceof Error ? err.message : err)
+    return false
+  }
+}
+
 // Create a payout record in the Backoffice "Affiliate & Referral Payout" table
 // when a referred sale is attributed. Writes only the real (non-lookup) fields;
 // Partner Email / Referred Sales / Client's Service are lookups that populate
