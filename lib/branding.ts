@@ -51,7 +51,7 @@ export const branding = {
   links: {
     support: 'https://forms.clickup.com/8619174/f/87156-46214/K4501E0ZLSXXXHF6QA',
     // "Become an affiliate" application form. Shown in the nav when set.
-    affiliate: '',
+    affiliate: 'https://airtable.com/appCDKeRL8J1xVmuO/pagRazEh4rj7XTsKp/form',
     shop: 'https://solutionintegrators.us/shop',
     shopLabel: 'Want more goodies? Visit the shop →',
     offers: 'https://solutionintegrators.us/service-guide',
