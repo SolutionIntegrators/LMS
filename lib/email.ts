@@ -59,3 +59,20 @@ export async function sendProductAccessEmail(opts: {
   `)
   await sendEmail(opts.to, `You now have access to ${opts.productTitle}`, html)
 }
+
+// Sent to an affiliate/partner when their tracking link is created.
+export async function sendAffiliateWelcomeEmail(opts: {
+  to: string
+  name?: string | null
+  link: string
+}): Promise<void> {
+  const hi = opts.name ? `Hi ${opts.name},` : 'Hi there,'
+  const html = shell(`
+    <p style="margin:0 0 14px;">${hi}</p>
+    <p style="margin:0 0 14px;">You’re all set up as a ${branding.company} partner. 🎉 Here’s your personal referral link — share it anywhere, and every click is tracked to you:</p>
+    <p style="margin:18px 0;background:#FCF1E8;border-radius:8px;padding:12px 16px;word-break:break-all;"><a href="${opts.link}" style="color:#A34F2B;font-weight:600;text-decoration:none;">${opts.link}</a></p>
+    <p style="margin:0 0 14px;">${button(opts.link, 'Test your link')}</p>
+    <p style="margin:14px 0 0;color:#7A8A95;font-size:13px;">Your link (and referral stats) also live in your partner hub.</p>
+  `)
+  await sendEmail(opts.to, `Your ${branding.company} referral link is ready`, html)
+}

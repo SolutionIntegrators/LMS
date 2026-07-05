@@ -1,7 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { sendAffiliateWelcomeEmail } from '@/lib/email'
 
 async function getAdminClient() {
   const supabase = await createServerSupabaseClient()
@@ -28,6 +30,12 @@ export async function createAffiliate(formData: FormData) {
 
   const { error } = await (db as any).from('affiliates').insert({ name, email, destination_url, code })
   if (error) throw new Error(error.code === '23505' ? `Code "${code}" is already taken` : error.message)
+
+  // Email the partner their link (best-effort; needs RESEND_API_KEY, skips otherwise).
+  if (email) {
+    const host = (await headers()).get('host') ?? 'goodies.solutionintegrators.us'
+    await sendAffiliateWelcomeEmail({ to: email, name: name || null, link: `https://${host}/r/${code}` })
+  }
   revalidatePath('/admin/affiliates')
 }
 
