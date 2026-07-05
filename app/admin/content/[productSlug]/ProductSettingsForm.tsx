@@ -67,6 +67,15 @@ export default function ProductSettingsForm({ product, kitTags = [] }: { product
         )}
       </label>
 
+      {/* Affiliate: sales-page URL. Setting it makes the product affiliate-eligible. */}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Sales page URL (for affiliate links)</span>
+        <input name="sales_page_url" defaultValue={product.sales_page_url ?? ''} placeholder="https://solutionintegrators.us/shop/…" style={inputStyle} />
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+          Where affiliate links for this product redirect. Filling this in makes the product available for partners to request a link.
+        </span>
+      </label>
+
       {/* Announcement bar — shows on this product's page for everyone who owns it */}
       <div style={{ border: '1px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.875rem 1rem', background: 'var(--si-linen)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', fontWeight: 600, color: 'var(--si-dark-text)', cursor: 'pointer' }}>

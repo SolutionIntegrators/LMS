@@ -63,6 +63,23 @@ export default function NavBar({ email, role }: NavBarProps) {
         >
           Support
         </a>
+        {branding.links.affiliate && (
+          <a
+            href={branding.links.affiliate}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'var(--si-sunset-yellow)',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              letterSpacing: '0.03em',
+            }}
+          >
+            Become an affiliate
+          </a>
+        )}
         {role === 'admin' && (
           <Link
             href="/admin/users"
