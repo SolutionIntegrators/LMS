@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 import { sendProductAccessEmail } from '@/lib/email'
+import { tagSubscriber } from '@/lib/kit'
 
 export async function GET() {
   return new Response('ThriveCart webhook endpoint active', { status: 200 })
@@ -34,7 +35,7 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
 
   const { data: product } = await (db as any)
     .from('products')
-    .select('id, title, slug, auto_grant_tags')
+    .select('id, title, slug, auto_grant_tags, kit_tag_id')
     .eq('thrivecart_product_id', tcProductId)
     .single()
 
@@ -94,6 +95,9 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
     event_type: eventType,
     metadata: { ...metadata, email, tc_product_id: tcProductId, transaction_ref: transactionRef },
   })
+
+  // Tag the buyer in Kit (best-effort, idempotent).
+  if (product.kit_tag_id) await tagSubscriber(product.kit_tag_id, email)
 
   // Notify existing customers of new product access (new buyers already got the invite).
   if (newlyGranted && !isNewUser) {

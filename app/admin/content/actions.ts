@@ -61,10 +61,12 @@ export async function updateProduct(formData: FormData) {
   const category = ((formData.get('category') as string) || '').trim() || null
   const announcement_active = formData.getAll('announcement_active').includes('true')
   const announcement_text = ((formData.get('announcement_text') as string) || '').trim() || null
+  const kitRaw = ((formData.get('kit_tag_id') as string) || '').trim()
+  const kit_tag_id = kitRaw ? Number(kitRaw) : null
 
   const { error } = await (db.from('products') as any).update({
     title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
-    announcement_active, announcement_text,
+    announcement_active, announcement_text, kit_tag_id,
   }).eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/content')

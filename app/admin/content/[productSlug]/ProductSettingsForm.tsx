@@ -25,7 +25,7 @@ async function saveAction(_prev: State, formData: FormData): Promise<State> {
   }
 }
 
-export default function ProductSettingsForm({ product }: { product: any }) {
+export default function ProductSettingsForm({ product, kitTags = [] }: { product: any; kitTags?: { id: number; name: string }[] }) {
   const [state, formAction, pending] = useActionState(saveAction, null)
 
   return (
@@ -47,6 +47,24 @@ export default function ProductSettingsForm({ product }: { product: any }) {
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 320 }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Category</span>
         <input name="category" defaultValue={product.category ?? ''} placeholder="e.g. Dubsado, Airtable…" style={inputStyle} />
+      </label>
+
+      {/* Kit (email marketing) tag applied to buyers of this product on purchase */}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 360 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Kit tag on purchase</span>
+        {kitTags.length > 0 ? (
+          <select name="kit_tag_id" defaultValue={product.kit_tag_id ?? ''} style={inputStyle}>
+            <option value="">— None —</option>
+            {kitTags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        ) : (
+          <>
+            <input name="kit_tag_id" defaultValue={product.kit_tag_id ?? ''} placeholder="Kit tag ID (Kit not connected)" style={inputStyle} />
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+              Kit isn&apos;t connected, so paste a tag ID manually. Once connected, this becomes a dropdown of your tags.
+            </span>
+          </>
+        )}
       </label>
 
       {/* Announcement bar — shows on this product's page for everyone who owns it */}

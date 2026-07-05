@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 import { sendProductAccessEmail } from '@/lib/email'
+import { tagSubscriber } from '@/lib/kit'
 
 // Zapier POST. Auth: send ZAPIER_WEBHOOK_SECRET as the x-api-key header.
 // Body may be JSON, form-encoded, or query-string.
@@ -88,6 +89,8 @@ export async function POST(request: Request) {
   // name for tag-only add-ons that have no LMS product (e.g. "House of Lume |
   // Collection Bundle"). Ignored when a real product was matched.
   const productName: string = pick('product_name', 'productname', 'product', 'offer', 'item')
+  // Optional Kit tag override (for tag-only add-ons, or to force a tag).
+  const kitTagOverride: string = pick('kit_tag_id', 'kittag', 'kit_tag')
 
   // Optional explicit tags: accepts a comma-separated string ("lumebundle, vip")
   // or an array. Used for add-ons that grant a tag rather than a product — e.g.
@@ -113,7 +116,7 @@ export async function POST(request: Request) {
   // tags-only call (an add-on with no separate product) skips this.
   let product: any = null
   if (productId || productSlug) {
-    let productQuery = db.from('products').select('id, title, slug, auto_grant_tags')
+    let productQuery = db.from('products').select('id, title, slug, auto_grant_tags, kit_tag_id')
     productQuery = (productId
       ? productQuery.eq('thrivecart_product_id', productId)
       : productQuery.eq('slug', productSlug)) as any
@@ -190,6 +193,13 @@ export async function POST(request: Request) {
     event_type: product ? 'purchase' : 'tag_grant',
     metadata: { source: 'zapier', email, transaction_ref: transactionRef, full_name: fullName, tags: tagsToAdd },
   })
+
+  // Tag the buyer in Kit (email marketing) — best-effort, idempotent.
+  // Uses the product's configured Kit tag and/or a payload override.
+  const kitTagIds = new Set<string | number>()
+  if (product?.kit_tag_id) kitTagIds.add(product.kit_tag_id)
+  if (kitTagOverride) kitTagIds.add(kitTagOverride)
+  for (const t of kitTagIds) await tagSubscriber(t, email)
 
   // Notify existing customers when they gain access to another product. New
   // buyers already got the branded invite above, so we don't double-email them.

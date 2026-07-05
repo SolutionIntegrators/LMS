@@ -8,6 +8,7 @@ import {
 } from '../actions'
 import AddLessonForm from './AddLessonForm'
 import ProductSettingsForm from './ProductSettingsForm'
+import { listKitTags } from '@/lib/kit'
 import DeleteProductButton from './DeleteProductButton'
 import ConfirmSubmitButton from './ConfirmSubmitButton'
 
@@ -54,6 +55,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   if (!product) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif' }}>Product not found.</div>
 
+  // Kit tags for the settings picker (empty list if Kit isn't configured).
+  const kitTags = await listKitTags()
+
   const { data: modules } = await supabase
     .from('modules')
     .select('*, lessons(id, title, sort_order, is_published, content_type)')
@@ -94,7 +98,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '1rem', color: 'var(--si-denim-blue)', marginBottom: '1rem' }}>
           Product Settings
         </h2>
-        <ProductSettingsForm product={product} />
+        <ProductSettingsForm product={product} kitTags={kitTags} />
         <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--si-border)' }}>
           <DeleteProductButton productId={product.id} />
         </div>
