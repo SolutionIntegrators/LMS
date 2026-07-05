@@ -4,6 +4,7 @@ import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 import { sendProductAccessEmail } from '@/lib/email'
 import { tagSubscriber } from '@/lib/kit'
+import { attributeSale } from '@/lib/affiliate'
 
 export async function GET() {
   return new Response('ThriveCart webhook endpoint active', { status: 200 })
@@ -69,13 +70,17 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
     await db.from('profiles').upsert({ id: userId, email, full_name: fullName, role: 'user' }, { onConflict: 'id' })
   }
 
+  const saleAmount: number | null = typeof metadata.amount === 'number' ? metadata.amount : null
+  const today = new Date().toISOString().slice(0, 10)
+
   const { data: grantedRows, error: accessError } = await db.from('user_product_access').upsert({
     user_id: userId,
     product_id: product.id,
     granted_by: metadata.source as string ?? 'webhook',
     transaction_ref: transactionRef || null,
     granted_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
+    amount: saleAmount,
+  } as any, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
 
   if (accessError) return { ok: false, message: `Failed to grant access: ${accessError.message}` }
   const newlyGranted = Array.isArray(grantedRows) && grantedRows.length > 0
@@ -98,6 +103,9 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
 
   // Tag the buyer in Kit (best-effort, idempotent).
   if (product.kit_tag_id) await tagSubscriber(product.kit_tag_id, email)
+
+  // Attribute the sale to a referring affiliate (only-linked-product scope).
+  await attributeSale(userId, product.id, saleAmount, today)
 
   // Notify existing customers of new product access (new buyers already got the invite).
   if (newlyGranted && !isNewUser) {

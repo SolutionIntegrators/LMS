@@ -1,16 +1,23 @@
 export const runtime = 'edge'
 
 
+import { cookies } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import NavBar from '@/components/NavBar'
 import ProductCard from '@/components/ProductCard'
 import WelcomeBanner from '@/components/WelcomeBanner'
+import { recordAttributionFromCookie, ATTR_COOKIE } from '@/lib/affiliate'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null // middleware handles redirect to /login
+
+  // Affiliate attribution: if this browser carries an aff_ref cookie, record it
+  // and convert any matching purchase (best-effort — never blocks the page).
+  const affRef = (await cookies()).get(ATTR_COOKIE)?.value
+  if (affRef) await recordAttributionFromCookie(user.id, affRef, new Date().toISOString().slice(0, 10))
 
   // Update last_login_at and upsert profile on password login path
   await supabase.from('profiles').upsert({

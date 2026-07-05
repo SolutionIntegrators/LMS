@@ -4,6 +4,7 @@ import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 import { sendProductAccessEmail } from '@/lib/email'
 import { tagSubscriber } from '@/lib/kit'
+import { attributeSale } from '@/lib/affiliate'
 
 // Zapier POST. Auth: send ZAPIER_WEBHOOK_SECRET as the x-api-key header.
 // Body may be JSON, form-encoded, or query-string.
@@ -91,6 +92,10 @@ export async function POST(request: Request) {
   const productName: string = pick('product_name', 'productname', 'product', 'offer', 'item')
   // Optional Kit tag override (for tag-only add-ons, or to force a tag).
   const kitTagOverride: string = pick('kit_tag_id', 'kittag', 'kit_tag')
+  // Sale amount (for Airtable + affiliate commission) and today's date.
+  const amountRaw = pick('amount', 'total', 'price', 'invoicetotal')
+  const saleAmount: number | null = amountRaw !== '' && !isNaN(Number(amountRaw)) ? Number(amountRaw) : null
+  const today = new Date().toISOString().slice(0, 10)
 
   // Optional explicit tags: accepts a comma-separated string ("lumebundle, vip")
   // or an array. Used for add-ons that grant a tag rather than a product — e.g.
@@ -168,7 +173,8 @@ export async function POST(request: Request) {
       granted_by: 'zapier_webhook',
       transaction_ref: transactionRef || null,
       granted_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
+      amount: saleAmount,
+    } as any, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
 
     if (accessError) {
       return new Response(`Failed to grant access: ${accessError.message}`, { status: 500 })
@@ -201,6 +207,9 @@ export async function POST(request: Request) {
   if (kitTagOverride) kitTagIds.add(kitTagOverride)
   for (const t of kitTagIds) await tagSubscriber(t, email)
 
+  // Attribute the sale to a referring affiliate (only-linked-product scope).
+  if (product) await attributeSale(userId, product.id, saleAmount, today)
+
   // Notify existing customers when they gain access to another product. New
   // buyers already got the branded invite above, so we don't double-email them.
   if (product && newlyGranted && !isNewUser) {
@@ -218,14 +227,13 @@ export async function POST(request: Request) {
   // a product_name is present, there's nothing to name the sale, so skip.
   const saleName = product?.title || productName
   if (saleName) {
-    const amountRaw = pick('amount', 'total', 'price', 'invoicetotal')
     await pushSaleToAirtable({
       email,
       fullName: fullName || null,
       productName: saleName,
       thrivecartId: productId || null,
       lmsSlug: productSlug || null,
-      amount: amountRaw !== '' && !isNaN(Number(amountRaw)) ? Number(amountRaw) : null,
+      amount: saleAmount,
       source: 'Zapier',
       transactionRef,
     })

@@ -10,6 +10,7 @@ const T_SALES = 'tblUqIR6quCX2s6E0'
 // Backoffice Management Hub → Affiliate & Referral Partners (separate base).
 const PARTNERS_BASE = process.env.AIRTABLE_PARTNERS_BASE_ID || 'appCDKeRL8J1xVmuO'
 const PARTNERS_TABLE = process.env.AIRTABLE_PARTNERS_TABLE || 'tblbzTvY0pRSt6Wxv'
+const PARTNERS_PAYOUT_TABLE = process.env.AIRTABLE_PAYOUT_TABLE || 'tblWej0WLbMqNJdrE'
 
 type Json = Record<string, unknown>
 
@@ -135,5 +136,52 @@ export async function syncAffiliateCodeToPartnerHub(email: string, code: string)
     })
   } catch (err) {
     console.error('syncAffiliateCodeToPartnerHub failed:', err instanceof Error ? err.message : err)
+  }
+}
+
+// Create a payout record in the Backoffice "Affiliate & Referral Payout" table
+// when a referred sale is attributed. Writes only the real (non-lookup) fields;
+// Partner Email / Referred Sales / Client's Service are lookups that populate
+// automatically from the linked partner. Best-effort.
+export async function pushReferralPayout(opts: {
+  partnerEmail?: string | null
+  buyerLabel: string
+  productTitle?: string | null
+  saleAmount: number | null
+  commission: number | null
+  code?: string | null
+  date: string // YYYY-MM-DD (passed in; edge runtime has no Date.now in some contexts)
+}): Promise<void> {
+  if (!token()) return
+  try {
+    const noteBits = [
+      opts.productTitle ? `Product: ${opts.productTitle}` : null,
+      opts.saleAmount != null ? `Sale: $${opts.saleAmount}` : null,
+      opts.code ? `via /r/${opts.code}` : null,
+      'auto-attributed by the LMS',
+    ].filter(Boolean)
+    const fields: Json = {
+      'Referred Client': opts.buyerLabel,
+      'Record Created Date': opts.date,
+      Notes: noteBits.join(' · '),
+    }
+    if (opts.commission != null) fields['Payout'] = opts.commission
+
+    if (opts.partnerEmail) {
+      const qs = new URLSearchParams({
+        filterByFormula: `LOWER({Email Address})='${esc(opts.partnerEmail.toLowerCase())}'`,
+        maxRecords: '1',
+      })
+      const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
+      const pid = found.records?.[0]?.id
+      if (pid) fields['Affiliate & Referral Partners'] = [pid]
+    }
+
+    await at(`${PARTNERS_BASE}/${PARTNERS_PAYOUT_TABLE}`, {
+      method: 'POST',
+      body: JSON.stringify({ fields, typecast: true }),
+    })
+  } catch (err) {
+    console.error('pushReferralPayout failed:', err instanceof Error ? err.message : err)
   }
 }

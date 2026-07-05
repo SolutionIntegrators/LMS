@@ -27,16 +27,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
 
   if (code) {
     const db = createServiceSupabaseClient()
-    const { data: affiliate } = await (db as any).from('affiliates')
+    const { data: link } = await (db as any).from('affiliate_links')
       .select('id, destination_url, is_active')
       .eq('code', code)
-      .single()
+      .maybeSingle()
 
-    if (affiliate?.is_active && affiliate.destination_url) {
-      destination = affiliate.destination_url
+    if (link?.is_active && link.destination_url) {
+      destination = link.destination_url
       // Best-effort click log — never block the redirect on it.
       await (db as any).from('affiliate_clicks').insert({
-        affiliate_id: affiliate.id,
+        link_id: link.id,
         referer: request.headers.get('referer'),
         user_agent: request.headers.get('user-agent'),
       })
