@@ -7,6 +7,10 @@ const T_CUSTOMERS = 'tblfUkvC9OEM6HhMx'
 const T_PRODUCTS = 'tblaL2e7RG0W18oJU'
 const T_SALES = 'tblUqIR6quCX2s6E0'
 
+// Backoffice Management Hub → Affiliate & Referral Partners (separate base).
+const PARTNERS_BASE = process.env.AIRTABLE_PARTNERS_BASE_ID || 'appCDKeRL8J1xVmuO'
+const PARTNERS_TABLE = process.env.AIRTABLE_PARTNERS_TABLE || 'tblbzTvY0pRSt6Wxv'
+
 type Json = Record<string, unknown>
 
 function token() {
@@ -105,5 +109,31 @@ export async function pushSaleToAirtable(input: SaleInput): Promise<void> {
   } catch (err) {
     // Never throw — log and move on so purchase processing still succeeds.
     console.error('pushSaleToAirtable failed:', err instanceof Error ? err.message : err)
+  }
+}
+
+// Stamp an affiliate's code onto their existing partner row in the Backoffice
+// Hub (matched by Email Address). The "Affiliate Link" formula field builds the
+// full URL from it. Best-effort + update-only: if no partner matches the email
+// we skip rather than create, so partner records / payout links stay intact.
+export async function syncAffiliateCodeToPartnerHub(email: string, code: string): Promise<void> {
+  if (!token() || !email) return
+  try {
+    const qs = new URLSearchParams({
+      filterByFormula: `LOWER({Email Address})='${esc(email.toLowerCase())}'`,
+      maxRecords: '1',
+    })
+    const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
+    const rec = found.records?.[0]
+    if (!rec) {
+      console.warn(`No partner record found for affiliate email ${email} — code not synced`)
+      return
+    }
+    await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}/${rec.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { 'Affiliate Code': code }, typecast: true }),
+    })
+  } catch (err) {
+    console.error('syncAffiliateCodeToPartnerHub failed:', err instanceof Error ? err.message : err)
   }
 }
