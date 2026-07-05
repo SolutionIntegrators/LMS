@@ -4,7 +4,7 @@ import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 import { sendProductAccessEmail } from '@/lib/email'
 import { tagSubscriber } from '@/lib/kit'
-import { attributeSale } from '@/lib/affiliate'
+import { attributeSale, payoutRevenueShares } from '@/lib/affiliate'
 
 // Zapier POST. Auth: send ZAPIER_WEBHOOK_SECRET as the x-api-key header.
 // Body may be JSON, form-encoded, or query-string.
@@ -209,6 +209,20 @@ export async function POST(request: Request) {
 
   // Attribute the sale to a referring affiliate (only-linked-product scope).
   if (product) await attributeSale(userId, product.id, saleAmount, today)
+
+  // Revenue-share partnerships (e.g. Laura on House of Lume): pays on every sale
+  // of the matched product, or a named add-on (matched by product_name). Add-ons
+  // that aren't configured (e.g. the Sell Anything bundle) simply don't match.
+  const buyerLabel = fullName || email
+  await payoutRevenueShares({
+    productId: product?.id ?? null,
+    label: product ? null : (productName || null),
+    saleName: product?.title || productName || 'Purchase',
+    amount: saleAmount,
+    transactionRef,
+    buyerLabel,
+    today,
+  })
 
   // Notify existing customers when they gain access to another product. New
   // buyers already got the branded invite above, so we don't double-email them.

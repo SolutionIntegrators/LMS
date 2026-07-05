@@ -226,6 +226,7 @@ export async function pushReferralPayout(opts: {
   commission: number | null
   code?: string | null
   date: string // YYYY-MM-DD (passed in; edge runtime has no Date.now in some contexts)
+  sourceNote?: string | null
 }): Promise<void> {
   if (!token()) return
   try {
@@ -233,7 +234,7 @@ export async function pushReferralPayout(opts: {
       opts.productTitle ? `Product: ${opts.productTitle}` : null,
       opts.saleAmount != null ? `Sale: $${opts.saleAmount}` : null,
       opts.code ? `via /r/${opts.code}` : null,
-      'auto-attributed by the LMS',
+      opts.sourceNote || 'auto-attributed by the LMS',
     ].filter(Boolean)
     const fields: Json = {
       'Referred Client': opts.buyerLabel,

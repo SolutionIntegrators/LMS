@@ -39,24 +39,20 @@ export async function POST(request: Request): Promise<Response> {
 
   const email = String(body.partner_email ?? body.email ?? '').trim().toLowerCase()
   const partnerName = String(body.partner_name ?? body.name ?? '').trim()
-  const productRef = String(body.product ?? body.product_slug ?? body.product_name ?? '').trim()
   const commissionRaw = String(body.commission ?? '').trim()
+
+  // Accept one product or many: `products` (array or comma/newline string) or
+  // the single `product` field. Airtable multi-selects arrive comma-joined.
+  const rawProducts = body.products ?? body.product ?? body.product_slug ?? body.product_name ?? ''
+  const productRefs: string[] = (Array.isArray(rawProducts) ? rawProducts : String(rawProducts).split(/[,\n]/))
+    .map((s: string) => String(s).trim()).filter(Boolean)
+
   if (!email) return new Response(JSON.stringify({ error: 'partner_email is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
-  if (!productRef) return new Response(JSON.stringify({ error: 'product is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+  if (productRefs.length === 0) return new Response(JSON.stringify({ error: 'product(s) required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
 
   const db = createServiceSupabaseClient()
 
-  // Resolve an affiliate-eligible product by slug or title (case-insensitive).
-  const norm = productRef.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/?products\//i, '').replace(/^\/+|\/+$/g, '')
-  const { data: products } = await (db as any).from('products')
-    .select('id, title, slug, sales_page_url')
-    .or(`slug.eq.${norm},title.ilike.${productRef}`)
-  const product = (products ?? []).find((p: any) => p.sales_page_url) ?? null
-  if (!product) {
-    return new Response(JSON.stringify({ error: `No affiliate-eligible product found for "${productRef}" (needs a Sales page URL set)` }), { status: 404, headers: { 'Content-Type': 'application/json' } })
-  }
-
-  // Find or create the affiliate by email.
+  // Find or create the affiliate by email (once).
   let { data: affiliate } = await (db as any).from('affiliates').select('id, name, email').eq('email', email).maybeSingle()
   if (!affiliate) {
     const commission_rate = commissionRaw && !isNaN(Number(commissionRaw)) ? Number(commissionRaw) : 0
@@ -66,26 +62,36 @@ export async function POST(request: Request): Promise<Response> {
     affiliate = created
   }
 
-  // Idempotent: return an existing link for this partner + product.
-  const { data: existing } = await (db as any).from('affiliate_links')
-    .select('code').eq('affiliate_id', affiliate.id).eq('product_id', product.id).maybeSingle()
-  if (existing) {
-    return Response.json({ ok: true, code: existing.code, link: `${url.origin}/r/${existing.code}`, existed: true })
+  async function createOneLink(productRef: string): Promise<any> {
+    const norm = productRef.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/?products\//i, '').replace(/^\/+|\/+$/g, '')
+    const { data: products } = await (db as any).from('products')
+      .select('id, title, slug, sales_page_url')
+      .or(`slug.eq.${norm},title.ilike.${productRef}`)
+    const product = (products ?? []).find((p: any) => p.sales_page_url) ?? null
+    if (!product) return { product: productRef, error: 'not affiliate-eligible (no Sales page URL)' }
+
+    // Idempotent: reuse an existing link for this partner + product.
+    const { data: existing } = await (db as any).from('affiliate_links')
+      .select('code').eq('affiliate_id', affiliate.id).eq('product_id', product.id).maybeSingle()
+    if (existing) return { product: product.title, code: existing.code, link: `${url.origin}/r/${existing.code}`, existed: true }
+
+    let base = toCode(`${affiliate.name}-${product.slug}`) || 'link'
+    const { data: taken } = await (db as any).from('affiliate_links').select('code').like('code', `${base}%`)
+    const takenSet = new Set((taken ?? []).map((r: any) => r.code))
+    let code = base
+    for (let n = 2; takenSet.has(code); n++) code = `${base}-${n}`
+
+    const { error: linkErr } = await (db as any).from('affiliate_links')
+      .insert({ affiliate_id: affiliate.id, product_id: product.id, code, destination_url: product.sales_page_url })
+    if (linkErr) return { product: product.title, error: linkErr.message }
+
+    const link = `${url.origin}/r/${code}`
+    await upsertAffiliateLink({ partnerEmail: email, product: product.title, code, url: link })
+    return { product: product.title, code, link }
   }
 
-  // Unique code from affiliate name + product slug.
-  let base = toCode(`${affiliate.name}-${product.slug}`) || 'link'
-  const { data: taken } = await (db as any).from('affiliate_links').select('code').like('code', `${base}%`)
-  const takenSet = new Set((taken ?? []).map((r: any) => r.code))
-  let code = base
-  for (let n = 2; takenSet.has(code); n++) code = `${base}-${n}`
+  const results = []
+  for (const ref of productRefs) results.push(await createOneLink(ref))
 
-  const { error: linkErr } = await (db as any).from('affiliate_links')
-    .insert({ affiliate_id: affiliate.id, product_id: product.id, code, destination_url: product.sales_page_url })
-  if (linkErr) return new Response(`Failed to create link: ${linkErr.message}`, { status: 500 })
-
-  const link = `${url.origin}/r/${code}`
-  await upsertAffiliateLink({ partnerEmail: email, product: product.title, code, url: link })
-
-  return Response.json({ ok: true, code, link })
+  return Response.json({ ok: true, results })
 }

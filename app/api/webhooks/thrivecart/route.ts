@@ -4,7 +4,7 @@ import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
 import { sendProductAccessEmail } from '@/lib/email'
 import { tagSubscriber } from '@/lib/kit'
-import { attributeSale } from '@/lib/affiliate'
+import { attributeSale, payoutRevenueShares } from '@/lib/affiliate'
 
 export async function GET() {
   return new Response('ThriveCart webhook endpoint active', { status: 200 })
@@ -106,6 +106,12 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
 
   // Attribute the sale to a referring affiliate (only-linked-product scope).
   await attributeSale(userId, product.id, saleAmount, today)
+
+  // Revenue-share partnerships — pays on every sale of a matched product.
+  await payoutRevenueShares({
+    productId: product.id, label: null, saleName: product.title,
+    amount: saleAmount, transactionRef, buyerLabel: (metadata.full_name as string) || email, today,
+  })
 
   // Notify existing customers of new product access (new buyers already got the invite).
   if (newlyGranted && !isNewUser) {

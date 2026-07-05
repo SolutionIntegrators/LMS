@@ -7,6 +7,56 @@
 import { createServiceSupabaseClient } from './supabase-service'
 import { pushReferralPayout } from './airtable'
 
+// Revenue-share partnerships: a partner earns a % on EVERY sale of a product
+// (matched by product_id) or a named add-on (matched by label = product_name),
+// independent of referral attribution. Deduped per (rule, transaction_ref), so
+// it only fires when a transaction_ref is present and never double-pays.
+export async function payoutRevenueShares(opts: {
+  productId?: string | null
+  label?: string | null      // the add-on product_name for tag-only sales
+  saleName: string           // product title or add-on name (for the payout note)
+  amount: number | null
+  transactionRef: string
+  buyerLabel: string
+  today: string
+}): Promise<void> {
+  if (!opts.transactionRef) return // need a ref to dedupe safely
+  try {
+    const db = createServiceSupabaseClient()
+    const rules: any[] = []
+    if (opts.productId) {
+      const { data } = await (db as any).from('product_revenue_shares').select('*').eq('product_id', opts.productId)
+      rules.push(...(data ?? []))
+    }
+    if (opts.label) {
+      const { data } = await (db as any).from('product_revenue_shares').select('*').ilike('label', opts.label)
+      rules.push(...(data ?? []))
+    }
+    for (const rule of rules) {
+      const rate = Number(rule.rate ?? 0)
+      const commission = opts.amount != null && rate ? Number((opts.amount * rate / 100).toFixed(2)) : null
+      // Dedupe: insert the payout log row; skip if this (rule, ref) already paid.
+      const { data: inserted } = await (db as any).from('revenue_share_payouts').upsert({
+        revenue_share_id: rule.id, transaction_ref: opts.transactionRef,
+        buyer_email: opts.buyerLabel, amount: opts.amount, commission,
+      }, { onConflict: 'revenue_share_id,transaction_ref', ignoreDuplicates: true }).select('id')
+      if (!inserted || inserted.length === 0) continue // already paid
+
+      await pushReferralPayout({
+        partnerEmail: rule.partner_email,
+        buyerLabel: opts.buyerLabel,
+        productTitle: opts.saleName,
+        saleAmount: opts.amount,
+        commission,
+        date: opts.today,
+        sourceNote: `revenue-share partnership (${rate}%)`,
+      })
+    }
+  } catch (err) {
+    console.error('payoutRevenueShares failed:', err instanceof Error ? err.message : err)
+  }
+}
+
 const ATTR_COOKIE = 'aff_ref'
 
 // Turn an un-converted attribution into a payout once the buyer owns the product.
