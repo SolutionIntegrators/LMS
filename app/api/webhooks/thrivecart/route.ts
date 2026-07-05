@@ -2,6 +2,7 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
+import { sendProductAccessEmail } from '@/lib/email'
 
 export async function GET() {
   return new Response('ThriveCart webhook endpoint active', { status: 200 })
@@ -28,12 +29,12 @@ async function verifySignature(body: string, signature: string, secret: string):
   return safeEqual(expected, signature.toLowerCase())
 }
 
-async function grantAccess(email: string, tcProductId: string, transactionRef: string, eventType: string, metadata: Record<string, unknown>) {
+async function grantAccess(email: string, tcProductId: string, transactionRef: string, eventType: string, metadata: Record<string, unknown>, origin: string) {
   const db = createServiceSupabaseClient()
 
   const { data: product } = await (db as any)
     .from('products')
-    .select('id, title, auto_grant_tags')
+    .select('id, title, slug, auto_grant_tags')
     .eq('thrivecart_product_id', tcProductId)
     .single()
 
@@ -42,32 +43,41 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
     return { ok: true, message: `No LMS product mapped for TC product ${tcProductId}` }
   }
 
+  // New buyers get the branded invite (onboarding email + login link) via
+  // Supabase SMTP; falls back to a silent create so the grant never fails.
   const { data: existingProfile } = await db.from('profiles').select('id').eq('email', email).single()
   let userId: string
+  const isNewUser = !existingProfile
 
   if (existingProfile) {
     userId = existingProfile.id
   } else {
-    const nameParts = ((metadata.full_name as string) ?? '').split(' ')
-    const { data: newUser, error } = await db.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { full_name: metadata.full_name ?? undefined },
+    const fullName = (metadata.full_name as string) || null
+    const { data: invited, error: inviteErr } = await db.auth.admin.inviteUserByEmail(email, {
+      data: fullName ? { full_name: fullName } : undefined,
     })
-    if (error || !newUser.user) return { ok: false, message: `Failed to create user: ${error?.message}` }
-    userId = newUser.user.id
-    await db.from('profiles').upsert({ id: userId, email, full_name: (metadata.full_name as string) || null, role: 'user' }, { onConflict: 'id' })
+    if (invited?.user && !inviteErr) {
+      userId = invited.user.id
+    } else {
+      const { data: newUser, error } = await db.auth.admin.createUser({
+        email, email_confirm: true, user_metadata: { full_name: fullName ?? undefined },
+      })
+      if (error || !newUser.user) return { ok: false, message: `Failed to create user: ${error?.message ?? inviteErr?.message}` }
+      userId = newUser.user.id
+    }
+    await db.from('profiles').upsert({ id: userId, email, full_name: fullName, role: 'user' }, { onConflict: 'id' })
   }
 
-  const { error: accessError } = await db.from('user_product_access').upsert({
+  const { data: grantedRows, error: accessError } = await db.from('user_product_access').upsert({
     user_id: userId,
     product_id: product.id,
     granted_by: metadata.source as string ?? 'webhook',
     transaction_ref: transactionRef || null,
     granted_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
+  }, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
 
   if (accessError) return { ok: false, message: `Failed to grant access: ${accessError.message}` }
+  const newlyGranted = Array.isArray(grantedRows) && grantedRows.length > 0
 
   // Apply auto-grant tags from the product config
   const autoGrantTags: string[] = (product as any).auto_grant_tags ?? []
@@ -84,6 +94,16 @@ async function grantAccess(email: string, tcProductId: string, transactionRef: s
     event_type: eventType,
     metadata: { ...metadata, email, tc_product_id: tcProductId, transaction_ref: transactionRef },
   })
+
+  // Notify existing customers of new product access (new buyers already got the invite).
+  if (newlyGranted && !isNewUser) {
+    await sendProductAccessEmail({
+      to: email,
+      fullName: (metadata.full_name as string) || null,
+      productTitle: product.title,
+      productUrl: `${origin}/products/${product.slug}`,
+    })
+  }
 
   // Mirror the sale into the Airtable Digital Product Hub (best-effort)
   await pushSaleToAirtable({
@@ -166,7 +186,7 @@ export async function POST(request: Request) {
     tc_event: event,
     full_name: [firstName, lastName].filter(Boolean).join(' ') || undefined,
     amount,
-  })
+  }, url.origin)
 
   return new Response(result.message, { status: result.ok ? 200 : 500 })
 }

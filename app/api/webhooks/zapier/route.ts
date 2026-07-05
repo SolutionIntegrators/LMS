@@ -2,6 +2,7 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { pushSaleToAirtable } from '@/lib/airtable'
+import { sendProductAccessEmail } from '@/lib/email'
 
 // Zapier POST. Auth: send ZAPIER_WEBHOOK_SECRET as the x-api-key header.
 // Body may be JSON, form-encoded, or query-string.
@@ -112,7 +113,7 @@ export async function POST(request: Request) {
   // tags-only call (an add-on with no separate product) skips this.
   let product: any = null
   if (productId || productSlug) {
-    let productQuery = db.from('products').select('id, title, auto_grant_tags')
+    let productQuery = db.from('products').select('id, title, slug, auto_grant_tags')
     productQuery = (productId
       ? productQuery.eq('thrivecart_product_id', productId)
       : productQuery.eq('slug', productSlug)) as any
@@ -126,38 +127,50 @@ export async function POST(request: Request) {
     }
   }
 
-  // Find or create user
+  // Find or create user. New buyers get the branded invite (their onboarding
+  // email with a login link) via Supabase SMTP — same flow as a manual invite.
   const { data: existingProfile } = await db.from('profiles').select('id').eq('email', email).single()
   let userId: string
+  const isNewUser = !existingProfile
 
   if (existingProfile) {
     userId = existingProfile.id
   } else {
-    const { data: newUser, error } = await db.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { full_name: fullName || undefined },
+    const { data: invited, error: inviteErr } = await db.auth.admin.inviteUserByEmail(email, {
+      data: fullName ? { full_name: fullName } : undefined,
     })
-    if (error || !newUser.user) {
-      return new Response(`Failed to create user: ${error?.message}`, { status: 500 })
+    if (invited?.user && !inviteErr) {
+      userId = invited.user.id
+    } else {
+      // Fallback: create silently so a bad/duplicate invite never blocks the purchase
+      const { data: newUser, error } = await db.auth.admin.createUser({
+        email, email_confirm: true, user_metadata: { full_name: fullName || undefined },
+      })
+      if (error || !newUser.user) {
+        return new Response(`Failed to create user: ${error?.message ?? inviteErr?.message}`, { status: 500 })
+      }
+      userId = newUser.user.id
     }
-    userId = newUser.user.id
     await db.from('profiles').upsert({ id: userId, email, full_name: fullName || null, role: 'user' }, { onConflict: 'id' })
   }
 
-  // Grant product access (only when a product was matched)
+  // Grant product access (only when a product was matched). .select() with
+  // ignoreDuplicates returns the row ONLY when newly inserted, so we can email
+  // existing customers exactly once and never on webhook retries.
+  let newlyGranted = false
   if (product) {
-    const { error: accessError } = await db.from('user_product_access').upsert({
+    const { data: grantedRows, error: accessError } = await db.from('user_product_access').upsert({
       user_id: userId,
       product_id: product.id,
       granted_by: 'zapier_webhook',
       transaction_ref: transactionRef || null,
       granted_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
+    }, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
 
     if (accessError) {
       return new Response(`Failed to grant access: ${accessError.message}`, { status: 500 })
     }
+    newlyGranted = Array.isArray(grantedRows) && grantedRows.length > 0
   }
 
   // Apply tags: the product's own auto_grant_tags PLUS any explicit tags in the
@@ -177,6 +190,17 @@ export async function POST(request: Request) {
     event_type: product ? 'purchase' : 'tag_grant',
     metadata: { source: 'zapier', email, transaction_ref: transactionRef, full_name: fullName, tags: tagsToAdd },
   })
+
+  // Notify existing customers when they gain access to another product. New
+  // buyers already got the branded invite above, so we don't double-email them.
+  if (product && newlyGranted && !isNewUser) {
+    await sendProductAccessEmail({
+      to: email,
+      fullName: fullName || null,
+      productTitle: product.title,
+      productUrl: `${url.origin}/products/${product.slug}`,
+    })
+  }
 
   // Mirror the sale into the Airtable Digital Product Hub (best-effort).
   // Records a product purchase (named from the LMS product) OR a tag-only
