@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { sendAffiliateWelcomeEmail } from '@/lib/email'
-import { syncAffiliateCodeToPartnerHub } from '@/lib/airtable'
+import { upsertAffiliateLink } from '@/lib/airtable'
 
 async function getAdminClient() {
   const supabase = await createServerSupabaseClient()
@@ -53,16 +53,17 @@ export async function createAffiliateLink(formData: FormData) {
   const { data: aff } = await (db as any).from('affiliates').select('name, email').eq('id', affiliate_id).single()
   if (!aff) throw new Error('Affiliate not found')
 
+  // Look up the promoted product (for auto-code + the Airtable link row label).
+  let productSlug = '', productTitle = ''
+  if (product_id) {
+    const { data: p } = await (db as any).from('products').select('slug, title').eq('id', product_id).single()
+    productSlug = p?.slug ?? ''
+    productTitle = p?.title ?? ''
+  }
+
   // Code: explicit, else auto from affiliate name (+ product slug), made unique.
   let base = toCode((formData.get('code') as string) || '')
-  if (!base) {
-    let productSlug = ''
-    if (product_id) {
-      const { data: p } = await (db as any).from('products').select('slug').eq('id', product_id).single()
-      productSlug = p?.slug ?? ''
-    }
-    base = toCode(`${aff.name}${productSlug ? '-' + productSlug : ''}`) || 'link'
-  }
+  if (!base) base = toCode(`${aff.name}${productSlug ? '-' + productSlug : ''}`) || 'link'
   const { data: taken } = await (db as any).from('affiliate_links').select('code').like('code', `${base}%`)
   const takenSet = new Set((taken ?? []).map((r: any) => r.code))
   let code = base
@@ -71,11 +72,12 @@ export async function createAffiliateLink(formData: FormData) {
   const { error } = await (db as any).from('affiliate_links').insert({ affiliate_id, product_id, code, destination_url })
   if (error) throw new Error(error.code === '23505' ? `Code "${code}" is already taken` : error.message)
 
-  // Email the affiliate their new link + sync the code to their partner hub row.
+  const host = (await headers()).get('host') ?? 'goodies.solutionintegrators.us'
+  const link = `https://${host}/r/${code}`
+  // Add this link as a row in the partner's Airtable "Affiliate Links" table.
   if (aff.email) {
-    const host = (await headers()).get('host') ?? 'goodies.solutionintegrators.us'
-    await sendAffiliateWelcomeEmail({ to: aff.email, name: aff.name || null, link: `https://${host}/r/${code}` })
-    await syncAffiliateCodeToPartnerHub(aff.email, code)
+    await upsertAffiliateLink({ partnerEmail: aff.email, product: productTitle || null, code, url: link })
+    await sendAffiliateWelcomeEmail({ to: aff.email, name: aff.name || null, link })
   }
   revalidatePath('/admin/affiliates')
 }

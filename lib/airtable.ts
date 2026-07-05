@@ -11,6 +11,7 @@ const T_SALES = 'tblUqIR6quCX2s6E0'
 const PARTNERS_BASE = process.env.AIRTABLE_PARTNERS_BASE_ID || 'appCDKeRL8J1xVmuO'
 const PARTNERS_TABLE = process.env.AIRTABLE_PARTNERS_TABLE || 'tblbzTvY0pRSt6Wxv'
 const PARTNERS_PAYOUT_TABLE = process.env.AIRTABLE_PAYOUT_TABLE || 'tblWej0WLbMqNJdrE'
+const LINKS_TABLE = process.env.AIRTABLE_LINKS_TABLE || 'tblCBzZBVXlLjJp6z'
 
 type Json = Record<string, unknown>
 
@@ -136,6 +137,57 @@ export async function syncAffiliateCodeToPartnerHub(email: string, code: string)
     })
   } catch (err) {
     console.error('syncAffiliateCodeToPartnerHub failed:', err instanceof Error ? err.message : err)
+  }
+}
+
+// Upsert one row in the "Affiliate Links" table (by Code), linked to the
+// partner. Called when a link is created so partners see all their links in the
+// interface. Best-effort.
+export async function upsertAffiliateLink(opts: {
+  partnerEmail?: string | null
+  product?: string | null
+  code: string
+  url: string
+}): Promise<void> {
+  if (!token() || !opts.code) return
+  try {
+    let partnerId: string | null = null
+    if (opts.partnerEmail) {
+      const qs = new URLSearchParams({ filterByFormula: `LOWER({Email Address})='${esc(opts.partnerEmail.toLowerCase())}'`, maxRecords: '1' })
+      const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
+      partnerId = found.records?.[0]?.id ?? null
+    }
+    const fields: Json = { Code: opts.code, 'Tracking Link': opts.url }
+    if (opts.product) fields['Product'] = opts.product
+    if (partnerId) fields['Partner'] = [partnerId]
+
+    const qs2 = new URLSearchParams({ filterByFormula: `{Code}='${esc(opts.code)}'`, maxRecords: '1' })
+    const existing = await at(`${PARTNERS_BASE}/${LINKS_TABLE}?${qs2.toString()}`)
+    const rec = existing.records?.[0]
+    if (rec) {
+      await at(`${PARTNERS_BASE}/${LINKS_TABLE}/${rec.id}`, { method: 'PATCH', body: JSON.stringify({ fields }) })
+    } else {
+      fields['Clicks'] = 0
+      await at(`${PARTNERS_BASE}/${LINKS_TABLE}`, { method: 'POST', body: JSON.stringify({ fields }) })
+    }
+  } catch (err) {
+    console.error('upsertAffiliateLink failed:', err instanceof Error ? err.message : err)
+  }
+}
+
+// Update a single link row's click count (by Code). Best-effort.
+export async function updateAffiliateLinkClicks(code: string, clicks: number): Promise<boolean> {
+  if (!token() || !code) return false
+  try {
+    const qs = new URLSearchParams({ filterByFormula: `{Code}='${esc(code)}'`, maxRecords: '1' })
+    const found = await at(`${PARTNERS_BASE}/${LINKS_TABLE}?${qs.toString()}`)
+    const rec = found.records?.[0]
+    if (!rec) return false
+    await at(`${PARTNERS_BASE}/${LINKS_TABLE}/${rec.id}`, { method: 'PATCH', body: JSON.stringify({ fields: { Clicks: clicks } }) })
+    return true
+  } catch (err) {
+    console.error('updateAffiliateLinkClicks failed:', err instanceof Error ? err.message : err)
+    return false
   }
 }
 
