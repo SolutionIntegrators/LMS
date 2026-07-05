@@ -31,9 +31,9 @@ export default async function ProductPage({
 
   // Verify access. Admins may view inactive (draft) products so they can preview
   // before publishing; students only ever see active products.
-  let productQuery = supabase
-    .from('products')
-    .select('id, title, slug, description, cover_image_url, is_active')
+  let productQuery = (supabase
+    .from('products') as any)
+    .select('id, title, slug, description, cover_image_url, is_active, announcement_active, announcement_text')
     .eq('slug', slug)
   if (!isAdmin) productQuery = productQuery.eq('is_active', true)
   const { data: product } = await productQuery.single()
@@ -104,6 +104,22 @@ export default async function ProductPage({
         </div>
       )}
       <NavBar email={profile?.email ?? ''} role={profile?.role ?? 'user'} />
+
+      {/* Per-product announcement bar — only owners of this product reach this page */}
+      {(product as any).announcement_active && (product as any).announcement_text && (
+        <div style={{
+          background: 'var(--si-sunset-yellow)',
+          color: 'var(--si-dark-text)',
+          textAlign: 'center',
+          padding: '0.75rem 1.5rem',
+          fontFamily: 'DM Sans, sans-serif',
+          fontSize: '0.9375rem',
+          fontWeight: 500,
+          lineHeight: 1.5,
+        }}>
+          📣 {(product as any).announcement_text}
+        </div>
+      )}
 
       {/* Hero */}
       <div style={{ background: 'var(--si-denim-blue)', padding: '3rem 1.5rem' }}>

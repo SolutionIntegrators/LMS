@@ -59,12 +59,16 @@ export async function updateProduct(formData: FormData) {
   const auto_grant_tags = ((formData.get('auto_grant_tags') as string) || '')
     .split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
   const category = ((formData.get('category') as string) || '').trim() || null
+  const announcement_active = formData.getAll('announcement_active').includes('true')
+  const announcement_text = ((formData.get('announcement_text') as string) || '').trim() || null
 
   const { error } = await (db.from('products') as any).update({
     title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
+    announcement_active, announcement_text,
   }).eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/content')
+  revalidatePath(`/products/${(formData.get('slug') as string) || ''}`)
 }
 
 export async function deleteProduct(formData: FormData) {

@@ -31,6 +31,7 @@ export default function ProductSettingsForm({ product }: { product: any }) {
   return (
     <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
       <input type="hidden" name="id" value={product.id} />
+      <input type="hidden" name="slug" value={product.slug} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
@@ -47,6 +48,22 @@ export default function ProductSettingsForm({ product }: { product: any }) {
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Category</span>
         <input name="category" defaultValue={product.category ?? ''} placeholder="e.g. Dubsado, Airtable…" style={inputStyle} />
       </label>
+
+      {/* Announcement bar — shows on this product's page for everyone who owns it */}
+      <div style={{ border: '1px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.875rem 1rem', background: 'var(--si-linen)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', fontWeight: 600, color: 'var(--si-dark-text)', cursor: 'pointer' }}>
+          <input type="hidden" name="announcement_active" value="false" />
+          <input type="checkbox" name="announcement_active" value="true" defaultChecked={product.announcement_active ?? false}
+            style={{ width: 16, height: 16, accentColor: 'var(--si-burnt-orange)' }} />
+          Show an announcement bar on this product
+        </label>
+        <textarea name="announcement_text" defaultValue={product.announcement_text ?? ''} rows={2}
+          placeholder="e.g. Dubsado 3.0 materials are coming in Q3 — you'll get them free as a current owner."
+          style={{ ...inputStyle, resize: 'vertical' }} />
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+          Only people who own this product will see it. Leave the box unchecked to hide without deleting the text.
+        </span>
+      </div>
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Description</span>
