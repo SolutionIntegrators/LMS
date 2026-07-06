@@ -25,3 +25,6 @@ alter table public.product_revenue_shares enable row level security;
 alter table public.revenue_share_payouts enable row level security;
 create policy prs_admin_all on public.product_revenue_shares for all using (public.is_admin());
 create policy rsp_admin_all on public.revenue_share_payouts for all using (public.is_admin());
+
+-- Match a rule by an applied tag (tag-only add-ons, e.g. "lumebundle").
+alter table public.product_revenue_shares add column if not exists tag text;

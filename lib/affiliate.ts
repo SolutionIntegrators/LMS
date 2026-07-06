@@ -14,6 +14,7 @@ import { pushReferralPayout } from './airtable'
 export async function payoutRevenueShares(opts: {
   productId?: string | null
   label?: string | null      // the add-on product_name for tag-only sales
+  tags?: string[] | null     // tags applied by this purchase (e.g. "lumebundle")
   saleName: string           // product title or add-on name (for the payout note)
   amount: number | null
   transactionRef: string
@@ -32,7 +33,15 @@ export async function payoutRevenueShares(opts: {
       const { data } = await (db as any).from('product_revenue_shares').select('*').ilike('label', opts.label)
       rules.push(...(data ?? []))
     }
-    for (const rule of rules) {
+    const tags = (opts.tags ?? []).map((t) => t.trim().toLowerCase()).filter(Boolean)
+    if (tags.length) {
+      const { data } = await (db as any).from('product_revenue_shares').select('*').in('tag', tags)
+      rules.push(...(data ?? []))
+    }
+    // De-dupe rules (a purchase could match the same rule via >1 path).
+    const seen = new Set<string>()
+    const uniqueRules = rules.filter((r) => (seen.has(r.id) ? false : seen.add(r.id)))
+    for (const rule of uniqueRules) {
       const rate = Number(rule.rate ?? 0)
       const commission = opts.amount != null && rate ? Number((opts.amount * rate / 100).toFixed(2)) : null
       // Dedupe: insert the payout log row; skip if this (rule, ref) already paid.
@@ -45,7 +54,7 @@ export async function payoutRevenueShares(opts: {
       await pushReferralPayout({
         partnerEmail: rule.partner_email,
         buyerLabel: opts.buyerLabel,
-        productTitle: opts.saleName,
+        productTitle: rule.label || opts.saleName,
         saleAmount: opts.amount,
         commission,
         date: opts.today,

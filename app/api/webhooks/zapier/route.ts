@@ -217,6 +217,7 @@ export async function POST(request: Request) {
   await payoutRevenueShares({
     productId: product?.id ?? null,
     label: product ? null : (productName || null),
+    tags: tagsToAdd,
     saleName: product?.title || productName || 'Purchase',
     amount: saleAmount,
     transactionRef,
