@@ -56,10 +56,9 @@ export interface SaleInput {
   email: string
   fullName?: string | null
   productName: string
-  thrivecartId?: string | null
   lmsSlug?: string | null
   amount?: number | null
-  source: 'ThriveCart' | 'Zapier' | 'Manual' | 'LMS'
+  source: 'Zapier' | 'Stripe' | 'Manual' | 'LMS'
   transactionRef?: string | null
 }
 
@@ -80,17 +79,10 @@ export async function pushSaleToAirtable(input: SaleInput): Promise<void> {
       })
     }
 
-    // Product (find by ThriveCart ID, else by name, else create)
-    let productId: string | null = null
-    if (input.thrivecartId) {
-      productId = await findRecord(T_PRODUCTS, `{ThriveCart ID}='${esc(String(input.thrivecartId))}'`)
-    }
-    if (!productId) {
-      productId = await findRecord(T_PRODUCTS, `{Product Name}='${esc(input.productName)}'`)
-    }
+    // Product (find by name, else create)
+    let productId: string | null = await findRecord(T_PRODUCTS, `{Product Name}='${esc(input.productName)}'`)
     if (!productId) {
       const fields: Json = { 'Product Name': input.productName, Active: true }
-      if (input.thrivecartId) fields['ThriveCart ID'] = String(input.thrivecartId)
       if (input.lmsSlug) fields['LMS Slug'] = input.lmsSlug
       productId = await createRecord(T_PRODUCTS, fields)
     }

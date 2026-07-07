@@ -33,16 +33,10 @@ export default function ProductSettingsForm({ product, kitTags = [] }: { product
       <input type="hidden" name="id" value={product.id} />
       <input type="hidden" name="slug" value={product.slug} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Title</span>
-          <input name="title" defaultValue={product.title} required style={inputStyle} />
-        </label>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>ThriveCart Product ID</span>
-          <input name="thrivecart_product_id" defaultValue={product.thrivecart_product_id ?? ''} style={inputStyle} />
-        </label>
-      </div>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Title</span>
+        <input name="title" defaultValue={product.title} required style={inputStyle} />
+      </label>
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 320 }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Category</span>
@@ -121,7 +115,7 @@ export default function ProductSettingsForm({ product, kitTags = [] }: { product
         <input name="auto_grant_tags" defaultValue={(product.auto_grant_tags ?? []).join(', ')}
           placeholder="e.g. proposal_bundle, vip" style={inputStyle} />
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
-          Tags auto-added to buyer&apos;s profile when this ThriveCart product is purchased.
+          Tags auto-added to the buyer&apos;s profile when this product is purchased.
         </span>
       </label>
 

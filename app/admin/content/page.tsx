@@ -25,7 +25,7 @@ const UNCATEGORIZED = 'Uncategorized'
 export default async function AdminContentPage() {
   const supabase = await createServerSupabaseClient()
   const { data: productsRaw } = await (supabase.from('products') as any)
-    .select('id, title, slug, is_active, thrivecart_product_id, category, created_at')
+    .select('id, title, slug, is_active, category, created_at')
     .order('title')
   const products = (productsRaw ?? []) as any[]
 
@@ -68,7 +68,7 @@ export default async function AdminContentPage() {
         <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '1rem', color: 'var(--si-denim-blue)', marginBottom: '1rem' }}>
           Add Product
         </h2>
-        <form action={createProduct} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
+        <form action={createProduct} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr auto', gap: '0.75rem', alignItems: 'end' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
             <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Title *</span>
             <input name="title" required placeholder="e.g. Systems Bootcamp" style={inputStyle} />
@@ -76,10 +76,6 @@ export default async function AdminContentPage() {
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
             <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Category</span>
             <input name="category" list="category-options" placeholder="e.g. Dubsado, Airtable…" style={inputStyle} />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>ThriveCart ID</span>
-            <input name="thrivecart_product_id" placeholder="optional" style={inputStyle} />
           </label>
           <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>Add Product</button>
         </form>
@@ -107,7 +103,6 @@ export default async function AdminContentPage() {
                   <tr>
                     <th style={th}>Title</th>
                     <th style={th}>Status</th>
-                    <th style={th}>ThriveCart</th>
                     <th style={th}>Move to category</th>
                     <th style={th}></th>
                   </tr>
@@ -121,7 +116,6 @@ export default async function AdminContentPage() {
                           {p.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td style={{ ...cell, color: 'var(--si-muted)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{p.thrivecart_product_id ?? '—'}</td>
                       <td style={cell}>
                         <form action={setProductCategory} style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
                           <input type="hidden" name="id" value={p.id} />

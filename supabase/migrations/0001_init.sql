@@ -67,7 +67,6 @@ create table if not exists public.products (
   cover_image_url       text,
   thumbnail_url         text,
   thumbnail_color       text,
-  thrivecart_product_id text unique,
   auto_grant_tags       text[] default '{}',
   is_active             boolean default true,
   created_at            timestamptz default now()

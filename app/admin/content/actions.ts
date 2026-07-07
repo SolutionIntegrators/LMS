@@ -22,7 +22,6 @@ export async function createProduct(formData: FormData) {
   const db = await getAdminClient()
   const title = formData.get('title') as string
   const description = (formData.get('description') as string) || null
-  const thrivecart_product_id = (formData.get('thrivecart_product_id') as string) || null
   const category = ((formData.get('category') as string) || '').trim() || null
 
   // Slug must be unique and non-empty: fall back for symbol-only titles and
@@ -33,7 +32,7 @@ export async function createProduct(formData: FormData) {
   let slug = base
   for (let n = 2; takenSet.has(slug); n++) slug = `${base}-${n}`
 
-  const { error } = await (db.from('products') as any).insert({ title, slug, description, thrivecart_product_id, is_active: false, category })
+  const { error } = await (db.from('products') as any).insert({ title, slug, description, is_active: false, category })
   if (error) throw new Error(error.message)
   revalidatePath('/admin/content')
 }
@@ -52,7 +51,6 @@ export async function updateProduct(formData: FormData) {
   const id = formData.get('id') as string
   const title = formData.get('title') as string
   const description = (formData.get('description') as string) || null
-  const thrivecart_product_id = (formData.get('thrivecart_product_id') as string) || null
   const is_active = formData.getAll('is_active').includes('true')
   const thumbnail_url = (formData.get('thumbnail_url') as string) || null
   const thumbnail_color = (formData.get('thumbnail_color') as string) || null
@@ -66,7 +64,7 @@ export async function updateProduct(formData: FormData) {
   const sales_page_url = ((formData.get('sales_page_url') as string) || '').trim() || null
 
   const { error } = await (db.from('products') as any).update({
-    title, description, thrivecart_product_id, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
+    title, description, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
     announcement_active, announcement_text, kit_tag_id, sales_page_url,
   }).eq('id', id)
   if (error) throw new Error(error.message)
@@ -128,7 +126,6 @@ export async function duplicateProduct(formData: FormData) {
     cover_image_url: src.cover_image_url,
     thumbnail_url: src.thumbnail_url,
     thumbnail_color: src.thumbnail_color,
-    thrivecart_product_id: null, // unique — never copy
     auto_grant_tags: src.auto_grant_tags,
     is_active: false, // new copy starts hidden until reviewed
   }).select('id').single()
