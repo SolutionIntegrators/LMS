@@ -117,6 +117,12 @@ To make a NEW product sellable via Stripe: create the Stripe Product + Price +
 Payment Link (with `metadata.lms_slug = <product slug>`), and the webhook grants
 it automatically. (Ask me to script this from the Investment price.)
 
+**Email-deliverable products (no portal access):** for things fulfilled by
+email (not the LMS), put a Kit tag id in the link's `metadata.kit_tag` and
+**omit `lms_slug`**. On purchase the webhook just tags the buyer in Kit — no
+portal account, no grant — and your Zapier/Kit automation handles delivery.
+(e.g. "Diagnose Your Biz Systems" → tag "Goodies Shop | DYBS - Automated".)
+
 ## SOP 10 — Affiliates & revenue-share
 
 Full detail in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**. In short:

@@ -1,6 +1,7 @@
 export const runtime = 'edge'
 
 import { processPurchase } from '@/lib/grant'
+import { tagSubscriber } from '@/lib/kit'
 
 // Stripe webhook: on a completed checkout (from our Payment Links), grant LMS
 // access via the shared purchase pipeline. The Payment Link's metadata.lms_slug
@@ -71,7 +72,17 @@ export async function POST(request: Request): Promise<Response> {
   // Stable per-purchase ref so retries dedupe (payout logs key on it).
   const transactionRef: string = session.payment_intent || session.id || ''
 
-  if (!lmsSlug) return Response.json({ received: true, ignored: 'no lms_slug in session metadata' })
+  // Email-deliverable products (no LMS access): if the link carries a Kit tag
+  // but no lms_slug, just tag the buyer in Kit and stop — no portal account,
+  // no product grant. Delivery of the file is handled outside the LMS.
+  const kitTag: string = session.metadata?.kit_tag || ''
+  if (!lmsSlug) {
+    if (kitTag && email) {
+      await tagSubscriber(kitTag, email)
+      return Response.json({ received: true, kit_tagged: kitTag, granted: false })
+    }
+    return Response.json({ received: true, ignored: 'no lms_slug / no kit_tag' })
+  }
   if (!email) return Response.json({ received: true, warning: 'no customer email on session' })
 
   const result = await processPurchase({
