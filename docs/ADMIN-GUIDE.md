@@ -1,125 +1,161 @@
 # SI Goodies Shop — Admin Guide & SOPs
 
-The LMS lives at **https://goodies.solutionintegrators.us** (also reachable at
-lms-egs.pages.dev). Sign in with an admin account, then use the **Admin** link
-in the top nav. Admin sections: **Content · Users · Activity Logs · Settings**.
+The LMS lives at **https://goodies.solutionintegrators.us**. Sign in with an
+admin account, then use the **Admin** link in the top nav. Admin sections:
+**Content · Users · Affiliates · Activity Logs · Settings**.
+
+Affiliate program specifics live in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**;
+email setup in **[EMAIL.md](EMAIL.md)**.
 
 ---
 
-## SOP 1 — Create a product
+## SOP 1 — Create & configure a product
 
-1. **Admin → Content → Add Product**: enter Title (+ ThriveCart Product ID if
-   it's sold via ThriveCart) → **Add Product**. New products start **inactive**
-   (invisible to students).
-2. Click **Edit →** on the product to open its settings:
-   - Description, Thumbnail (URL or brand color), **Auto-grant tags on
-     purchase** (comma-separated — tags added to the buyer's profile when this
-     product is purchased; see SOP 5).
-   - **Active** checkbox: tick when ready for students to see it.
-3. **Delete product** (bottom of settings) removes the product and all its
-   modules/lessons. Purchase history in activity logs is preserved.
+1. **Admin → Content → Add Product**: Title + optional Category → **Add
+   Product**. New products start **inactive** (invisible to students).
+2. Click **Edit →** to open its settings:
+   - **Description**, **Category**, **Thumbnail** (URL or brand color).
+   - **Auto-grant tags on purchase** (comma-separated — added to the buyer's
+     profile on purchase; see SOP 5).
+   - **Kit tag on purchase** — dropdown of your Kit tags; buyers are tagged in
+     Kit automatically (see SOP 7).
+   - **Sales page URL** — the public sales page. Setting it makes the product
+     **affiliate-eligible** and is where its affiliate links redirect (see the
+     Affiliate SOP).
+   - **Announcement bar** — a checkbox + message shown on this product's page to
+     everyone who owns it (see SOP 8).
+   - **Active** checkbox: tick when ready for students.
+3. **Categories:** the Content page groups products by category. To change a
+   product's category, edit it (or use the quick "Move to category" control on
+   the products list).
+4. **Duplicate:** the products list has a **Duplicate** button (full copy incl.
+   modules + lessons, saved inactive). Modules and lessons have their own
+   Duplicate buttons too.
+5. **Delete product** removes it and its modules/lessons. Activity-log history
+   is preserved.
 
 ## SOP 2 — Build content (modules, lessons, elements)
 
-1. On the product's edit page, **Add Module** (bottom). Each module row lets
-   you rename, set a thumbnail, set a **Required tag** (see SOP 5), reorder
-   (↑/↓), or delete.
-2. **+ Add Lesson** inside a module, then click **Edit** on the lesson:
-   - **Content type**: Video (embed URL from Loom/Vimeo/YouTube), Embed
-     (Airtable/Notion/forms — the iframe auto-sizes to the content), PDF,
-     Text, or Download. Files/images can be uploaded directly (stored in
-     Supabase Storage).
-   - **Content elements**: a block builder below the media — Button, Heading,
-     Text, Bullets, Image, Divider, HTML. Reorder with ↑/↓. Text/Bullets
-     support inline markdown: `[label](https://url)` links, `**bold**`,
-     `*italic*`.
-   - **Access Control**: Published toggle (drafts are admin-only), Free
-     preview (anyone signed in can view without purchase), Required tag.
-3. For video lessons the description shows **below** the video.
+1. On the product's edit page, **Add Module**. Each module row: rename,
+   thumbnail, **Required tag** (SOP 5), reorder (↑/↓), **Duplicate**, delete.
+2. **+ Add Lesson**, then **Edit** the lesson:
+   - **Content type:** Video (embed URL), Embed (Airtable/Notion/forms — auto-
+     sizes), PDF, Text, or Download. Downloads open in a new tab. Files/images
+     upload directly (Supabase Storage).
+   - **Content elements:** block builder below the media — Button, Heading,
+     Text, Bullets, Image, Divider, HTML. Text/Bullets support inline markdown
+     (`[label](https://url)`, `**bold**`, `*italic*`) and lines starting with
+     `- ` render as bullets.
+   - **Access Control:** Published toggle (drafts admin-only), Free preview,
+     Required tag.
+   - **Duplicate** the lesson (copies as a draft).
 
 ## SOP 3 — Preview as a student
 
-On any product's edit page click **👁 Preview as student ↗** (top right).
-Opens the real student view in a new tab with an orange preview banner.
-Works on inactive/draft products. Preview visits don't pollute analytics.
-Gated modules show a 🔒 tag badge to you (students without the tag see
-nothing).
+On a product's edit page click **👁 Preview as student ↗**. Opens the real
+student view (orange banner), works on drafts, doesn't pollute analytics.
 
 ## SOP 4 — Add a user / manage access
 
-Everything is on **Admin → Users**:
-
-- **Add a user** (top form): email + name + optional program → **Add + send
-  invite**. Creates their account, emails the branded invite, and grants the
-  program in one step. This is the standard onboarding flow.
-- **Grant more programs**: the "+ Grant program…" dropdown in their row.
-- **Revoke**: the ✕ on a program chip.
-- **Name / Tags**: inline edit + Save in their row.
-- Students can also self-create an account by requesting a magic link at the
-  login page — you can then grant programs to their row.
+**Admin → Users**:
+- **Add a user:** email + name + optional product → **Add + send invite**
+  (creates the account, sends the branded invite, grants the product).
+- **Grant more products:** the "+ Grant…" dropdown in their row. **Revoke:** ✕.
+- **Name / Tags:** inline edit + Save.
+- Users can also self-serve a magic-link login, then you grant products.
 
 ## SOP 5 — Tags (gating + auto-grant)
 
-Tags live on the user's profile (Users page → Tags column, lowercase,
-comma-separated).
+Tags live on the user's profile (Users page → Tags, lowercase, comma-separated).
+- **Gate a module/lesson:** set its "Required tag" → hidden from users without it.
+- **Auto-grant on purchase:** a product's "Auto-grant tags" are added to buyers
+  automatically, unlocking any content gated by those tags.
 
-- **Gate a module**: set "Required tag" on the module row → students without
-  the tag don't see the module at all, and direct lesson links are blocked.
-- **Gate a single lesson**: set "Required tag" in the lesson's Access Control.
-- **Auto-grant on purchase**: set "Auto-grant tags" on a product → buyers get
-  those tags automatically when a purchase webhook fires (unlocks any
-  modules/lessons gated by those tags).
+## SOP 6 — Purchases → automatic access (Dubsado + Stripe)
 
-## SOP 6 — Purchases → automatic access
+**Payment is taken via Dubsado or Stripe.** Both grant portal access
+automatically through one shared pipeline (find/invite the buyer, grant the
+product, store the amount, apply tags, tag in Kit, run affiliate attribution +
+revenue-share, email the buyer, mirror the sale to Airtable). Best-effort side
+effects never block the grant.
 
-Two webhook endpoints grant access automatically (both fail-closed):
+- **Dubsado → Zapier:** in the Zap, POST to `/api/webhooks/zapier` with header
+  `x-api-key: <ZAPIER_WEBHOOK_SECRET>` and JSON:
+  `{ email, product_slug, full_name?, transaction_ref?, amount?, tags?, product_name?, kit_tag_id? }`.
+  Use `tags` (no product) for tag-only add-ons (e.g. `lumebundle`).
+- **Stripe:** the Payment Links (backup checkout, SOP 9) fire the Stripe webhook
+  at `/api/webhooks/stripe` (signature-verified). It grants **only** for our
+  payment links (guarded on `payment_link` + `metadata.lms_slug`) — Dubsado
+  charges / invoices in the same Stripe account never trigger it.
 
-- **ThriveCart**: notification URL must be
-  `https://goodies.solutionintegrators.us/api/webhooks/thrivecart?key=<THRIVECART_WEBHOOK_SECRET>`
-  (secret lives in Cloudflare Pages secrets + .env.local). Products map via
-  the ThriveCart Product ID field.
-- **Zapier** (e.g. Dubsado → Zapier): POST to `/api/webhooks/zapier` with
-  header `x-api-key: <ZAPIER_WEBHOOK_SECRET>` and JSON
-  `{email, product_id (TC id) or product_slug, full_name?, transaction_ref?, amount?}`.
+New buyers get a branded invite; existing customers get a "you now have access
+to X" email; Kit-tagging and affiliate/revenue-share payouts run automatically.
 
-Both create the user if needed, grant access, apply auto-grant tags, log the
-purchase, and **mirror the sale to the Airtable "SI Digital Product Hub"**
-(Customers/Products/Sales) with the amount. Airtable failures never block
-access granting.
+## SOP 7 — Kit (email marketing) tagging
 
-## SOP 7 — Support requests
+Each product's **Kit tag on purchase** (product settings) is applied to the
+buyer in Kit on every purchase (via both payment paths). Needs `KIT_API_KEY`.
+Keep the product's Kit tag mapping in sync as you add products.
 
-The **Support** link in the top nav (all users) opens the ClickUp form:
-https://forms.clickup.com/8619174/f/87156-46214/K4501E0ZLSXXXHF6QA
+## SOP 8 — Announcements
 
-## SOP 8 — Announcements & monitoring
+- **Site-wide:** Admin → Settings → announcement bar text + toggle (burnt-orange
+  bar on the dashboard for everyone).
+- **Per-product:** each product's settings has its own announcement bar
+  (sunset-yellow) shown only to owners of that product — e.g. notify Dubsado
+  DIY owners about new materials without showing anyone else.
 
-- **Admin → Settings**: announcement bar text + toggle (shows on student
-  dashboards).
-- **Admin → Activity Logs**: logins, lesson views, completions, purchases —
-  filter by email/event/date.
-- **Airtable Hub**: business reporting (customers, sales, revenue rollups).
-- **Resend dashboard → Logs**: every auth email with delivered/bounce status.
+## SOP 9 — Stripe backup checkout
+
+Live Stripe **Products + Payment Links** exist as a backup to Dubsado, priced
+from the Money Metrics "Investment" column. Each link:
+- carries `metadata.lms_slug` so the webhook grants the right product
+- **requires the buyer's individual + business name** at checkout
+- House of Lume / Sell Anything / Aurum links include an optional add-on
+
+To make a NEW product sellable via Stripe: create the Stripe Product + Price +
+Payment Link (with `metadata.lms_slug = <product slug>`), and the webhook grants
+it automatically. (Ask me to script this from the Investment price.)
+
+## SOP 10 — Affiliates & revenue-share
+
+Full detail in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**. In short:
+- **Admin → Affiliates:** add partners, per-product tracking links, see clicks +
+  commission owed. Sales auto-attribute (referred buyer buys the linked product
+  → login) and write payouts to the Backoffice hub.
+- **"Become an affiliate"** nav link → your application form.
+- **Self-service link requests** via the partner's Airtable interface.
+- **Revenue-share partnerships** (e.g. Laura at 30% on set products/add-ons) are
+  configured in the `product_revenue_shares` table and pay on every matching
+  sale.
+
+## SOP 11 — Support & monitoring
+
+- **Support** nav link → ClickUp form.
+- **Admin → Activity Logs:** logins, views, completions, purchases.
+- **Airtable Hub:** sales/revenue reporting. **Backoffice Hub:** partner links,
+  clicks, payouts. **Resend dashboard:** email delivery. **Stripe dashboard:**
+  Stripe payments + the webhook delivery log.
 
 ## Emails
 
-See [EMAIL.md](EMAIL.md) — sender identity (connect@solutionintegrators.us via
-Resend SMTP), branded templates (source of truth in
-[email-templates/](email-templates/)), URL configuration, troubleshooting.
+See [EMAIL.md](EMAIL.md). Auth emails (invite / magic link / reset) send via
+Supabase SMTP (Resend). Custom transactional emails — "new access granted" and
+"your affiliate link is ready" — send via the Resend API (`RESEND_API_KEY`).
 
 ## Architecture / ops quick reference
 
 | Thing | Where |
 |---|---|
 | Hosting | Cloudflare Pages, project `lms` (edge runtime) |
-| Domain | goodies.solutionintegrators.us (CNAME → lms-egs.pages.dev) |
-| Database + auth + file storage | Supabase project `fgxivwspgczmzoztqyoy` |
+| Domain | goodies.solutionintegrators.us |
+| Database + auth + storage | Supabase project `fgxivwspgczmzoztqyoy` |
 | Deploy | `npx @cloudflare/next-on-pages && npx wrangler pages deploy .vercel/output/static --project-name=lms` |
-| Secrets (CF Pages) | SUPABASE_SERVICE_ROLE_KEY, THRIVECART_WEBHOOK_SECRET, ZAPIER_WEBHOOK_SECRET, AIRTABLE_TOKEN |
+| Secrets (CF Pages) | SUPABASE_SERVICE_ROLE_KEY, ZAPIER_WEBHOOK_SECRET, STRIPE_WEBHOOK_SECRET, AIRTABLE_TOKEN, RESEND_API_KEY, KIT_API_KEY, CRON_SECRET, AFFILIATE_LINK_SECRET |
 | Repo | github.com/SolutionIntegrators/LMS (main) |
-| Airtable hub | "SI Digital Product Hub" base `appDiqNZWv2YPRYTE` |
+| Airtable sales hub | "SI Digital Product Hub" `appDiqNZWv2YPRYTE` |
+| Airtable partner/payout hub | "Backoffice Management Hub" `appCDKeRL8J1xVmuO` |
+| Payments | Dubsado→Zapier + Stripe (both → shared grant pipeline). ThriveCart retired. |
 
-**Edge-runtime gotchas for developers**: never call `redirect()`/`notFound()`
-in render paths (broken on CF Pages — use middleware or client navigation);
-never put event handlers on elements in Server Components; new CF secrets
-require a fresh deploy to appear.
+**Edge-runtime gotchas:** never call `redirect()`/`notFound()` in render paths;
+no event handlers on Server Component elements; new CF secrets need a fresh deploy.

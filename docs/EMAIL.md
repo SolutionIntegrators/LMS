@@ -4,6 +4,14 @@ All auth emails (magic link, invite, confirm signup, password reset) are sent
 **from `connect@solutionintegrators.us`** via [Resend](https://resend.com),
 wired into Supabase Auth as a custom SMTP provider.
 
+> **Two email paths, one Resend account:**
+> 1. **Auth emails** (this doc) go through **Supabase SMTP** (the Resend key set
+>    as the SMTP password).
+> 2. **Custom transactional emails** — "you now have access to X" (repeat buyers)
+>    and "your affiliate link is ready" — are sent by the app via the **Resend
+>    API** using `RESEND_API_KEY` (a sending-only key). If that env var is unset,
+>    those two just skip silently; auth emails still work.
+
 ## How it works
 
 ```
