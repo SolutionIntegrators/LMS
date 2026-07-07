@@ -50,6 +50,20 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const session = event.data?.object ?? {}
+
+  // Only grant for OUR LMS Payment Links. Three independent guards so no other
+  // Stripe activity (Dubsado charges, manual invoices, other checkouts) can ever
+  // trigger a grant:
+  //   1. must be a one-time `payment` (not a subscription/setup session)
+  //   2. must have originated from a Payment Link (session.payment_link set)
+  //   3. must carry our metadata.lms_slug (only our product links set it)
+  if (session.mode && session.mode !== 'payment') {
+    return Response.json({ received: true, ignored: `mode ${session.mode}` })
+  }
+  if (!session.payment_link) {
+    return Response.json({ received: true, ignored: 'not a payment-link checkout' })
+  }
+
   const email: string = session.customer_details?.email || session.customer_email || ''
   const fullName: string = session.customer_details?.name || ''
   const lmsSlug: string = session.metadata?.lms_slug || ''
@@ -57,8 +71,8 @@ export async function POST(request: Request): Promise<Response> {
   // Stable per-purchase ref so retries dedupe (payout logs key on it).
   const transactionRef: string = session.payment_intent || session.id || ''
 
+  if (!lmsSlug) return Response.json({ received: true, ignored: 'no lms_slug in session metadata' })
   if (!email) return Response.json({ received: true, warning: 'no customer email on session' })
-  if (!lmsSlug) return Response.json({ received: true, warning: 'no lms_slug in session metadata' })
 
   const result = await processPurchase({
     email,
