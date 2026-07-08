@@ -19,6 +19,12 @@ const questrial = Questrial({
 export const metadata: Metadata = {
   title: branding.siteTitle,
   description: branding.siteDescription,
+  // Favicon served as a plain static asset from /public (NOT an app/icon.* file,
+  // which regenerates the CF _routes.json and can 404 dynamic routes).
+  icons: {
+    icon: [{ url: '/favicon.png', type: 'image/png' }],
+    apple: [{ url: '/apple-touch-icon.png' }],
+  },
 }
 
 export default function RootLayout({
