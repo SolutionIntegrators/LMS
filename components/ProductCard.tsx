@@ -10,10 +10,20 @@ interface Props {
     slug: string
     description: string | null
     cover_image_url: string | null
+    thumbnail_url?: string | null
+    thumbnail_color?: string | null
   }
 }
 
 export default function ProductCard({ product }: Props) {
+  // Prefer the admin "Thumbnail URL" field, then a legacy cover image, then a
+  // solid brand color, then the default gradient.
+  const image = product.thumbnail_url || product.cover_image_url
+  const headerBackground = image
+    ? `url(${image}) center/cover`
+    : product.thumbnail_color
+      ? product.thumbnail_color
+      : 'linear-gradient(135deg, var(--si-denim-blue) 0%, #2C3D4A 100%)'
   return (
     <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none' }}>
       <div
@@ -36,9 +46,7 @@ export default function ProductCard({ product }: Props) {
         <div
           style={{
             height: 160,
-            background: product.cover_image_url
-              ? `url(${product.cover_image_url}) center/cover`
-              : 'linear-gradient(135deg, var(--si-denim-blue) 0%, #2C3D4A 100%)',
+            background: headerBackground,
             display: 'flex',
             alignItems: 'flex-end',
             padding: '1rem',

@@ -40,12 +40,14 @@ export default async function DashboardPage() {
     slug: string
     description: string | null
     cover_image_url: string | null
+    thumbnail_url: string | null
+    thumbnail_color: string | null
   }> = []
 
   if (productIds.length > 0) {
     const { data: productRows } = await supabase
       .from('products')
-      .select('id, title, slug, description, cover_image_url')
+      .select('id, title, slug, description, cover_image_url, thumbnail_url, thumbnail_color')
       .in('id', productIds)
       .eq('is_active', true)
       .order('title')
