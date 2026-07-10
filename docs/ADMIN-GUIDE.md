@@ -117,6 +117,12 @@ To make a NEW product sellable via Stripe: create the Stripe Product + Price +
 Payment Link (with `metadata.lms_slug = <product slug>`), and the webhook grants
 it automatically. (Ask me to script this from the Investment price.)
 
+**Abandoned cart tracking:** the Stripe webhook also handles
+`checkout.session.expired` (subscribe to it on the Stripe endpoint) → records a
+row in the Backoffice **Abandoned Cart Metrics** table (product, amount, date,
+name if captured; Source "Stripe"). Only payment-link sessions; ~24h delay
+(Stripe's payment-link expiry). Metrics only — no auto Kit nurture.
+
 **Email-deliverable products (no portal access):** for things fulfilled by
 email (not the LMS), put a Kit tag id in the link's `metadata.kit_tag` and
 **omit `lms_slug`**. On purchase the webhook just tags the buyer in Kit — no
