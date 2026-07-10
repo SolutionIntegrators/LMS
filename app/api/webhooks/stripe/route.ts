@@ -2,6 +2,8 @@ export const runtime = 'edge'
 
 import { processPurchase } from '@/lib/grant'
 import { tagSubscriber } from '@/lib/kit'
+import { pushAbandonedCart } from '@/lib/airtable'
+import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
 // Stripe webhook: on a completed checkout (from our Payment Links), grant LMS
 // access via the shared purchase pipeline. The Payment Link's metadata.lms_slug
@@ -45,12 +47,36 @@ export async function POST(request: Request): Promise<Response> {
   let event: any
   try { event = JSON.parse(payload) } catch { return new Response('Invalid JSON', { status: 400 }) }
 
-  // Only act on completed checkouts; ack everything else so Stripe stops retrying.
+  const session = event.data?.object ?? {}
+
+  // Abandoned cart: a payment-link checkout that expired without completing.
+  // Record it as a metric in the Backoffice Abandoned Cart table (best-effort).
+  if (event.type === 'checkout.session.expired') {
+    if (!session.payment_link) return Response.json({ received: true, ignored: 'not a payment-link checkout' })
+    const abFullName: string = session.customer_details?.name || ''
+    const abAmount: number | null = typeof session.amount_total === 'number' ? session.amount_total / 100 : null
+    const abSlug: string = session.metadata?.lms_slug || ''
+    // Nicer product label: look up the LMS title by slug, else fall back.
+    let productName = session.metadata?.product_name || abSlug || '(Stripe checkout)'
+    if (abSlug) {
+      try {
+        const { data } = await createServiceSupabaseClient().from('products').select('title').eq('slug', abSlug).single()
+        if (data?.title) productName = data.title
+      } catch { /* best-effort */ }
+    }
+    await pushAbandonedCart({
+      fullName: abFullName || null,
+      amount: abAmount,
+      productName,
+      date: new Date().toISOString().slice(0, 10),
+    })
+    return Response.json({ received: true, abandoned_cart: true })
+  }
+
+  // Only act on completed checkouts beyond here; ack everything else.
   if (event.type !== 'checkout.session.completed') {
     return Response.json({ received: true, ignored: event.type })
   }
-
-  const session = event.data?.object ?? {}
 
   // Only grant for OUR LMS Payment Links. Three independent guards so no other
   // Stripe activity (Dubsado charges, manual invoices, other checkouts) can ever

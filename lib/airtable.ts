@@ -12,6 +12,7 @@ const PARTNERS_BASE = process.env.AIRTABLE_PARTNERS_BASE_ID || 'appCDKeRL8J1xVmu
 const PARTNERS_TABLE = process.env.AIRTABLE_PARTNERS_TABLE || 'tblbzTvY0pRSt6Wxv'
 const PARTNERS_PAYOUT_TABLE = process.env.AIRTABLE_PAYOUT_TABLE || 'tblWej0WLbMqNJdrE'
 const LINKS_TABLE = process.env.AIRTABLE_LINKS_TABLE || 'tblCBzZBVXlLjJp6z'
+const ABANDONED_TABLE = process.env.AIRTABLE_ABANDONED_TABLE || 'tblE2EhqFBl671zpE'
 
 type Json = Record<string, unknown>
 
@@ -203,6 +204,38 @@ export async function updatePartnerClicks(email: string, clicks: number): Promis
   } catch (err) {
     console.error('updatePartnerClicks failed:', err instanceof Error ? err.message : err)
     return false
+  }
+}
+
+// Record an abandoned Stripe checkout in the Backoffice "Abandoned Cart Metrics"
+// table. Best-effort. Name fields fill in only if the customer entered them
+// before leaving; the metric (product/amount/date) is recorded either way.
+export async function pushAbandonedCart(opts: {
+  fullName?: string | null
+  amount: number | null
+  productName?: string | null
+  date: string // YYYY-MM-DD
+}): Promise<void> {
+  if (!token()) return
+  try {
+    const parts = (opts.fullName || '').trim().split(/\s+/).filter(Boolean)
+    const fields: Json = {
+      Date: opts.date,
+      'Activity Type': 'Abandoned Cart',
+      Source: 'Stripe',
+    }
+    if (parts.length) {
+      fields['First Name'] = parts[0]
+      if (parts.length > 1) fields['Last Name'] = parts.slice(1).join(' ')
+    }
+    if (opts.productName) fields['Product'] = opts.productName
+    if (opts.amount != null) fields['Amount'] = opts.amount
+    await at(`${PARTNERS_BASE}/${ABANDONED_TABLE}`, {
+      method: 'POST',
+      body: JSON.stringify({ fields, typecast: true }),
+    })
+  } catch (err) {
+    console.error('pushAbandonedCart failed:', err instanceof Error ? err.message : err)
   }
 }
 
