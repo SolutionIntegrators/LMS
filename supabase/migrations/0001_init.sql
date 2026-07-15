@@ -68,6 +68,7 @@ create table if not exists public.products (
   thumbnail_url         text,
   thumbnail_color       text,
   auto_grant_tags       text[] default '{}',
+  grant_product_ids     uuid[] not null default '{}',  -- bundles: also unlock these products on purchase
   is_active             boolean default true,
   created_at            timestamptz default now()
 );

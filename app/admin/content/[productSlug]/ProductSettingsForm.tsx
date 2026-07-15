@@ -21,21 +21,47 @@ async function saveAction(_prev: State, formData: FormData): Promise<State> {
     await updateProduct(formData)
     return { ok: true, error: null }
   } catch (err) {
+    // A slug change ends in redirect() — let Next handle it, don't show it as an error.
+    if (err && typeof err === 'object' && 'digest' in err && String((err as any).digest).startsWith('NEXT_REDIRECT')) {
+      throw err
+    }
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to save product' }
   }
 }
 
-export default function ProductSettingsForm({ product, kitTags = [] }: { product: any; kitTags?: { id: number; name: string }[] }) {
+export default function ProductSettingsForm({
+  product,
+  kitTags = [],
+  allProducts = [],
+}: {
+  product: any
+  kitTags?: { id: number; name: string }[]
+  allProducts?: { id: string; title: string }[]
+}) {
+  const otherProducts = allProducts.filter((p) => p.id !== product.id)
+  const grantIds: string[] = product.grant_product_ids ?? []
   const [state, formAction, pending] = useActionState(saveAction, null)
 
   return (
     <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
       <input type="hidden" name="id" value={product.id} />
-      <input type="hidden" name="slug" value={product.slug} />
+      <input type="hidden" name="orig_slug" value={product.slug} />
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Title</span>
         <input name="title" defaultValue={product.title} required style={inputStyle} />
+      </label>
+
+      {/* Editable URL slug */}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Product URL</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--si-muted)', whiteSpace: 'nowrap' }}>/products/</span>
+          <input name="slug" defaultValue={product.slug} placeholder="sell-anything-with-dubsado-bundle" style={{ ...inputStyle, fontFamily: 'monospace' }} />
+        </div>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+          Letters, numbers, and dashes only — spaces and symbols are auto-converted. Must be unique. Changing it changes the product&apos;s link.
+        </span>
       </label>
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 320 }}>
@@ -92,10 +118,6 @@ export default function ProductSettingsForm({ product, kitTags = [] }: { product
           style={{ ...inputStyle, resize: 'vertical' }} />
       </label>
 
-      <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--si-muted)' }}>
-        Product URL: <code style={{ background: 'var(--si-linen)', padding: '0.15rem 0.4rem', borderRadius: 3, fontSize: '0.8rem' }}>/products/{product.slug}</code>
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', maxWidth: 480, alignItems: 'end' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Thumbnail URL (optional)</span>
@@ -116,6 +138,21 @@ export default function ProductSettingsForm({ product, kitTags = [] }: { product
           placeholder="e.g. proposal_bundle, vip" style={inputStyle} />
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
           Tags auto-added to the buyer&apos;s profile when this product is purchased.
+        </span>
+      </label>
+
+      {/* Cross-grant: this product also unlocks other products on purchase (bundles). */}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>
+          Also grant access to these products on purchase
+        </span>
+        <select name="grant_product_ids" multiple defaultValue={grantIds} size={Math.min(8, Math.max(3, otherProducts.length))} style={{ ...inputStyle, height: 'auto', padding: '0.4rem' }}>
+          {otherProducts.map((p) => (
+            <option key={p.id} value={p.id}>{p.title}</option>
+          ))}
+        </select>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+          For bundles: buying this product also unlocks the selected products (and their gated content). Hold ⌘/Ctrl to select more than one, or click a highlighted item again to deselect.
         </span>
       </label>
 

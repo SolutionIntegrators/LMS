@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 async function getAdminClient() {
@@ -62,14 +63,36 @@ export async function updateProduct(formData: FormData) {
   const kitRaw = ((formData.get('kit_tag_id') as string) || '').trim()
   const kit_tag_id = kitRaw ? Number(kitRaw) : null
   const sales_page_url = ((formData.get('sales_page_url') as string) || '').trim() || null
+  // Products this one also unlocks on purchase (e.g. a bundle → the main course).
+  const grant_product_ids = formData.getAll('grant_product_ids').map((v) => String(v)).filter(Boolean)
 
-  const { error } = await (db.from('products') as any).update({
+  // URL slug — editable. Normalize whatever was typed; a blank field keeps the
+  // old slug. The DB has a unique constraint, so surface a friendly clash error.
+  const origSlug = (formData.get('orig_slug') as string) || ''
+  const typedSlug = ((formData.get('slug') as string) || '').trim()
+  const slug = typedSlug ? toSlug(typedSlug) : origSlug
+  const slugChanged = slug && slug !== origSlug
+
+  const update: Record<string, unknown> = {
     title, description, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
-    announcement_active, announcement_text, kit_tag_id, sales_page_url,
-  }).eq('id', id)
-  if (error) throw new Error(error.message)
+    announcement_active, announcement_text, kit_tag_id, sales_page_url, grant_product_ids,
+  }
+  if (slugChanged) update.slug = slug
+
+  const { error } = await (db.from('products') as any).update(update).eq('id', id)
+  if (error) {
+    if (/duplicate|unique/i.test(error.message)) {
+      throw new Error(`The URL "/products/${slug}" is already taken by another product. Pick a different one.`)
+    }
+    throw new Error(error.message)
+  }
   revalidatePath('/admin/content')
-  revalidatePath(`/products/${(formData.get('slug') as string) || ''}`)
+  revalidatePath(`/products/${origSlug}`)
+  if (slugChanged) {
+    revalidatePath(`/products/${slug}`)
+    // The admin edit URL is keyed on the slug, so send the editor to the new one.
+    redirect(`/admin/content/${slug}`)
+  }
 }
 
 export async function deleteProduct(formData: FormData) {
