@@ -63,8 +63,6 @@ export async function updateProduct(formData: FormData) {
   const kitRaw = ((formData.get('kit_tag_id') as string) || '').trim()
   const kit_tag_id = kitRaw ? Number(kitRaw) : null
   const sales_page_url = ((formData.get('sales_page_url') as string) || '').trim() || null
-  // Products this one also unlocks on purchase (e.g. a bundle → the main course).
-  const grant_product_ids = formData.getAll('grant_product_ids').map((v) => String(v)).filter(Boolean)
 
   // URL slug — editable. Normalize whatever was typed; a blank field keeps the
   // old slug. The DB has a unique constraint, so surface a friendly clash error.
@@ -75,7 +73,7 @@ export async function updateProduct(formData: FormData) {
 
   const update: Record<string, unknown> = {
     title, description, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
-    announcement_active, announcement_text, kit_tag_id, sales_page_url, grant_product_ids,
+    announcement_active, announcement_text, kit_tag_id, sales_page_url,
   }
   if (slugChanged) update.slug = slug
 

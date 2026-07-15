@@ -29,17 +29,7 @@ async function saveAction(_prev: State, formData: FormData): Promise<State> {
   }
 }
 
-export default function ProductSettingsForm({
-  product,
-  kitTags = [],
-  allProducts = [],
-}: {
-  product: any
-  kitTags?: { id: number; name: string }[]
-  allProducts?: { id: string; title: string }[]
-}) {
-  const otherProducts = allProducts.filter((p) => p.id !== product.id)
-  const grantIds: string[] = product.grant_product_ids ?? []
+export default function ProductSettingsForm({ product, kitTags = [] }: { product: any; kitTags?: { id: number; name: string }[] }) {
   const [state, formAction, pending] = useActionState(saveAction, null)
 
   return (
@@ -138,21 +128,6 @@ export default function ProductSettingsForm({
           placeholder="e.g. proposal_bundle, vip" style={inputStyle} />
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
           Tags auto-added to the buyer&apos;s profile when this product is purchased.
-        </span>
-      </label>
-
-      {/* Cross-grant: this product also unlocks other products on purchase (bundles). */}
-      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
-        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>
-          Also grant access to these products on purchase
-        </span>
-        <select name="grant_product_ids" multiple defaultValue={grantIds} size={Math.min(8, Math.max(3, otherProducts.length))} style={{ ...inputStyle, height: 'auto', padding: '0.4rem' }}>
-          {otherProducts.map((p) => (
-            <option key={p.id} value={p.id}>{p.title}</option>
-          ))}
-        </select>
-        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
-          For bundles: buying this product also unlocks the selected products (and their gated content). Hold ⌘/Ctrl to select more than one, or click a highlighted item again to deselect.
         </span>
       </label>
 

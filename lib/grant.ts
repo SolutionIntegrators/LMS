@@ -50,7 +50,7 @@ export async function processPurchase(opts: PurchaseInput): Promise<PurchaseResu
   // Product (by slug). A tags-only add-on skips this.
   let product: any = null
   if (productSlug) {
-    const { data } = await db.from('products').select('id, title, slug, auto_grant_tags, kit_tag_id, grant_product_ids').eq('slug', productSlug).single()
+    const { data } = await db.from('products').select('id, title, slug, auto_grant_tags, kit_tag_id').eq('slug', productSlug).single()
     product = data
     if (!product) return { status: 404, body: { error: `No product found for slug "${productSlug}"` } }
   }
@@ -88,25 +88,8 @@ export async function processPurchase(opts: PurchaseInput): Promise<PurchaseResu
     newlyGranted = Array.isArray(grantedRows) && grantedRows.length > 0
   }
 
-  // Cross-grant: a product (e.g. a bundle SKU) can unlock OTHER products on
-  // purchase. Grant an access row for each, and fold in their auto-grant tags so
-  // any tag-gated content unlocks too. One level only — we never recurse into a
-  // linked product's own grant list.
-  const linkedIds: string[] = (product?.grant_product_ids ?? []).filter((pid: string) => pid && pid !== product?.id)
-  let linkedTags: string[] = []
-  if (linkedIds.length > 0) {
-    const { data: linked } = await db.from('products').select('id, auto_grant_tags').in('id', linkedIds)
-    for (const lp of linked ?? []) {
-      await db.from('user_product_access').upsert({
-        user_id: userId, product_id: (lp as any).id, granted_by: `${opts.source}:bundle`,
-        transaction_ref: transactionRef || null, granted_at: new Date().toISOString(), amount: null,
-      } as any, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
-      linkedTags = [...linkedTags, ...(((lp as any).auto_grant_tags ?? []) as string[])]
-    }
-  }
-
-  // Tags (product auto-grant + linked-product auto-grant + explicit).
-  const tagsToAdd = [...new Set([...(product?.auto_grant_tags ?? []), ...linkedTags, ...explicitTags])] as string[]
+  // Tags (product auto-grant + explicit).
+  const tagsToAdd = [...new Set([...(product?.auto_grant_tags ?? []), ...explicitTags])] as string[]
   if (tagsToAdd.length > 0) {
     const { data: profileData } = await (db as any).from('profiles').select('tags').eq('id', userId).single()
     const existingTags: string[] = profileData?.tags ?? []

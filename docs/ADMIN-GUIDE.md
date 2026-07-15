@@ -27,11 +27,6 @@ email setup in **[EMAIL.md](EMAIL.md)**.
    - **Active** checkbox: tick when ready for students.
    - **Product URL** — the slug is editable. Type a new one (letters, numbers,
      dashes) and Save; you're redirected to the new URL. Must be unique.
-   - **Also grant access to these products on purchase** — for **bundles**:
-     select one or more other products and buying this one also unlocks them
-     (and their tag-gated content). ⌘/Ctrl-click to multi-select. e.g. the
-     *Sell Anything With Dubsado — Workflow Templates + Mini Training* bundle
-     grants the main *Sell Anything With Dubsado* course too.
 3. **Categories:** the Content page groups products by category. To change a
    product's category, edit it (or use the quick "Move to category" control on
    the products list).
