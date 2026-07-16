@@ -13,6 +13,35 @@ const PARTNERS_TABLE = process.env.AIRTABLE_PARTNERS_TABLE || 'tblbzTvY0pRSt6Wxv
 const PARTNERS_PAYOUT_TABLE = process.env.AIRTABLE_PAYOUT_TABLE || 'tblWej0WLbMqNJdrE'
 const LINKS_TABLE = process.env.AIRTABLE_LINKS_TABLE || 'tblCBzZBVXlLjJp6z'
 const ABANDONED_TABLE = process.env.AIRTABLE_ABANDONED_TABLE || 'tblE2EhqFBl671zpE'
+// "Products" (digital products) table in the Backoffice base, linked from payouts.
+const PARTNERS_PRODUCTS_TABLE = process.env.AIRTABLE_PARTNERS_PRODUCTS_TABLE || 'tbl26UczLHCUMb2zO'
+
+// Payout productTitle (an LMS product title or a rev-share rule label) → the
+// exact {Name} in the Backoffice Products table, for the ones whose names don't
+// match. Anything not listed falls back to an exact (case-insensitive) name
+// match, so products named identically in both places link automatically.
+const DIGITAL_PRODUCT_ALIASES: Record<string, string> = {
+  'house of lume | dubsado proposal': 'House of Lume',
+  'house of lume collection upsell': 'House of Lume | Collection',
+  'aurum financial | dubsado proposal': 'Aurum Financial | Coded Dubsado Proposal',
+  // "Sell Anything With Dubsado" matches "Sell Anything with Dubsado" by
+  // case-insensitive name — no alias needed.
+}
+
+// Resolve a payout's product title to a Backoffice Products record id (or null).
+async function findDigitalProductId(productTitle?: string | null): Promise<string | null> {
+  const title = (productTitle || '').trim()
+  if (!token() || !title) return null
+  const target = DIGITAL_PRODUCT_ALIASES[title.toLowerCase()] || title
+  try {
+    const qs = new URLSearchParams({ filterByFormula: `LOWER({Name})='${esc(target.toLowerCase())}'`, maxRecords: '1' })
+    const found = await at(`${PARTNERS_BASE}/${PARTNERS_PRODUCTS_TABLE}?${qs.toString()}`)
+    return found.records?.[0]?.id ?? null
+  } catch (err) {
+    console.error('findDigitalProductId failed:', err instanceof Error ? err.message : err)
+    return null
+  }
+}
 
 type Json = Record<string, unknown>
 
@@ -267,6 +296,10 @@ export async function pushReferralPayout(opts: {
       Notes: noteBits.join(' · '),
     }
     if (opts.commission != null) fields['Payout'] = opts.commission
+
+    // Link the digital product (best-effort; skipped if no matching record).
+    const digitalProductId = await findDigitalProductId(opts.productTitle)
+    if (digitalProductId) fields['Digital Products'] = [digitalProductId]
 
     if (opts.partnerEmail) {
       const qs = new URLSearchParams({
