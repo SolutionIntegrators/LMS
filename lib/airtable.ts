@@ -136,6 +136,32 @@ export async function pushSaleToAirtable(input: SaleInput): Promise<void> {
   }
 }
 
+// Stamp traffic attribution (source/medium/campaign, captured client-side on the
+// thank-you page) onto the already-created Sales row in the SI Digital Product
+// Hub, matched by Transaction Ref. Best-effort + update-only. Returns true if a
+// row was found and patched (so the caller can retry if the mirror lagged).
+export async function updateSaleAttribution(transactionRef: string, attr: {
+  source?: string | null
+  medium?: string | null
+  campaign?: string | null
+}): Promise<boolean> {
+  if (!token() || !transactionRef) return false
+  const fields: Json = {}
+  if (attr.source) fields['Traffic Source'] = attr.source
+  if (attr.medium) fields['Traffic Medium'] = attr.medium
+  if (attr.campaign) fields['Campaign'] = attr.campaign
+  if (Object.keys(fields).length === 0) return false
+  try {
+    const id = await findRecord(T_SALES, `{Transaction Ref}='${esc(transactionRef)}'`)
+    if (!id) return false
+    await at(`${BASE_ID}/${T_SALES}/${id}`, { method: 'PATCH', body: JSON.stringify({ fields }) })
+    return true
+  } catch (err) {
+    console.error('updateSaleAttribution failed:', err instanceof Error ? err.message : err)
+    return false
+  }
+}
+
 // Stamp an affiliate's code onto their existing partner row in the Backoffice
 // Hub (matched by Email Address). The "Affiliate Link" formula field builds the
 // full URL from it. Best-effort + update-only: if no partner matches the email

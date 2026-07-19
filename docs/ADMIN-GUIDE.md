@@ -166,7 +166,7 @@ Supabase SMTP (Resend). Custom transactional emails — "new access granted" and
 | Database + auth + storage | Supabase project `fgxivwspgczmzoztqyoy` |
 | Deploy | `npx @cloudflare/next-on-pages && npx wrangler pages deploy .vercel/output/static --project-name=lms` |
 | Secrets (CF Pages) | SUPABASE_SERVICE_ROLE_KEY, ZAPIER_WEBHOOK_SECRET, STRIPE_WEBHOOK_SECRET, AIRTABLE_TOKEN, RESEND_API_KEY, KIT_API_KEY, GA4_MEASUREMENT_ID, GA4_API_SECRET, CRON_SECRET, AFFILIATE_LINK_SECRET |
-| Analytics | GA4 — payment-link sales fire `purchase` + `shop_purchase`. Primary path is client-side (thank-you page `solutionintegrators.us/purchase-confirmed` via GTM `GTM-M4LNS9TQ`) so source/medium/campaign attribute; the webhook stashes each sale (stripe_checkout_confirmations) and a cron backstop `/api/cron/ga-fallback?key=CRON_SECRET` (every ~15 min) sends any the browser missed. Dubsado sales are NOT in GA4 (not through Stripe). |
+| Analytics | GA4 — payment-link sales fire `purchase` + `shop_purchase`. Primary path is client-side (thank-you page `solutionintegrators.us/purchase-confirmed` via GTM `GTM-M4LNS9TQ`) so source/medium/campaign attribute; the webhook stashes each sale (stripe_checkout_confirmations) and a cron backstop `/api/cron/ga-fallback?key=CRON_SECRET` (every ~15 min) sends any the browser missed. The thank-you page also passes UTM source/medium/campaign to `/api/checkout-confirmation`, which mirrors them onto the Airtable Sales row (Traffic Source / Traffic Medium / Campaign). Dubsado sales are NOT in GA4 (not through Stripe). |
 | Repo | github.com/SolutionIntegrators/LMS (main) |
 | Airtable sales hub | "SI Digital Product Hub" `appDiqNZWv2YPRYTE` |
 | Airtable partner/payout hub | "Backoffice Management Hub" `appCDKeRL8J1xVmuO` |

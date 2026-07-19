@@ -1,6 +1,7 @@
 export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
+import { updateSaleAttribution } from '@/lib/airtable'
 
 // Read a completed sale by Stripe Checkout Session id, for the client-side
 // thank-you page (solutionintegrators.us/purchase-confirmed). Returns the
@@ -27,7 +28,13 @@ export function OPTIONS(): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const sessionId = new URL(request.url).searchParams.get('session_id') || ''
+  const url = new URL(request.url)
+  const sessionId = url.searchParams.get('session_id') || ''
+  // Traffic attribution captured client-side (last-touch) on the thank-you page.
+  const clean = (v: string | null) => (v || '').trim().slice(0, 200) || null
+  const source = clean(url.searchParams.get('utm_source'))
+  const medium = clean(url.searchParams.get('utm_medium'))
+  const campaign = clean(url.searchParams.get('utm_campaign'))
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders() } })
 
@@ -45,11 +52,21 @@ export async function GET(request: Request): Promise<Response> {
     // if we're early, tell the page to retry rather than record nothing.
     if (!data) return json({ pending: true }, 202)
 
-    // Mark browser-confirmed (idempotent) so the fallback cron skips it.
-    if (!(data as any).client_confirmed_at) {
-      await db.from('stripe_checkout_confirmations')
-        .update({ client_confirmed_at: new Date().toISOString() } as any)
-        .eq('session_id', sessionId)
+    // Mark browser-confirmed (idempotent) so the fallback cron skips it, and
+    // stash attribution. By the time the page has a value to render, the webhook
+    // has finished (incl. the Airtable sale mirror), so the update below lands.
+    const patch: Record<string, unknown> = {}
+    if (!(data as any).client_confirmed_at) patch.client_confirmed_at = new Date().toISOString()
+    if (source) patch.utm_source = source
+    if (medium) patch.utm_medium = medium
+    if (campaign) patch.utm_campaign = campaign
+    if (Object.keys(patch).length > 0) {
+      await db.from('stripe_checkout_confirmations').update(patch as any).eq('session_id', sessionId)
+    }
+
+    // Mirror the traffic source onto the Airtable Sales row (best-effort).
+    if (source || medium || campaign) {
+      await updateSaleAttribution((data as any).transaction_ref || '', { source, medium, campaign })
     }
 
     return json({
