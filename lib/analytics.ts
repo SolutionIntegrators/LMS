@@ -36,22 +36,25 @@ export async function sendGa4Purchase(opts: {
   if (opts.value == null || Number.isNaN(opts.value)) return // no monetary value → nothing to record
   try {
     const currency = (opts.currency || 'USD').toUpperCase()
+    const params = {
+      transaction_id: opts.transactionId,
+      currency,
+      value: Number(opts.value),
+      items: [
+        { item_name: opts.itemName, price: Number(opts.value), quantity: 1 },
+      ],
+    }
     const body = {
       client_id: clientIdFromEmail(opts.email || opts.transactionId || 'anonymous'),
       // non_personalized_ads keeps this clean for a pure server-side conversion
       non_personalized_ads: true,
+      // `purchase` drives GA4's built-in Monetization/Ecommerce reports;
+      // `shop_purchase` is the account's custom event (key-event/conversion).
+      // Same params on both. Only `purchase` counts toward standard ecommerce
+      // revenue, so this doesn't double-count in those reports.
       events: [
-        {
-          name: 'purchase',
-          params: {
-            transaction_id: opts.transactionId,
-            currency,
-            value: Number(opts.value),
-            items: [
-              { item_name: opts.itemName, price: Number(opts.value), quantity: 1 },
-            ],
-          },
-        },
+        { name: 'purchase', params },
+        { name: 'shop_purchase', params },
       ],
     }
     const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`
