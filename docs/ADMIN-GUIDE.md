@@ -165,7 +165,8 @@ Supabase SMTP (Resend). Custom transactional emails — "new access granted" and
 | Domain | goodies.solutionintegrators.us |
 | Database + auth + storage | Supabase project `fgxivwspgczmzoztqyoy` |
 | Deploy | `npx @cloudflare/next-on-pages && npx wrangler pages deploy .vercel/output/static --project-name=lms` |
-| Secrets (CF Pages) | SUPABASE_SERVICE_ROLE_KEY, ZAPIER_WEBHOOK_SECRET, STRIPE_WEBHOOK_SECRET, AIRTABLE_TOKEN, RESEND_API_KEY, KIT_API_KEY, CRON_SECRET, AFFILIATE_LINK_SECRET |
+| Secrets (CF Pages) | SUPABASE_SERVICE_ROLE_KEY, ZAPIER_WEBHOOK_SECRET, STRIPE_WEBHOOK_SECRET, AIRTABLE_TOKEN, RESEND_API_KEY, KIT_API_KEY, GA4_MEASUREMENT_ID, GA4_API_SECRET, CRON_SECRET, AFFILIATE_LINK_SECRET |
+| Analytics | GA4 (Measurement Protocol) — Stripe webhook fires a `purchase` event per payment-link sale. See Reports → Realtime / Monetization → Ecommerce purchases. Dubsado sales are NOT in GA4 (they don't go through Stripe). |
 | Repo | github.com/SolutionIntegrators/LMS (main) |
 | Airtable sales hub | "SI Digital Product Hub" `appDiqNZWv2YPRYTE` |
 | Airtable partner/payout hub | "Backoffice Management Hub" `appCDKeRL8J1xVmuO` |
