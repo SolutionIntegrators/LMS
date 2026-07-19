@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { processPurchase } from '@/lib/grant'
 import { tagSubscriber } from '@/lib/kit'
 import { pushAbandonedCart } from '@/lib/airtable'
+import { sendGa4Purchase } from '@/lib/analytics'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
 // Stripe webhook: on a completed checkout (from our Payment Links), grant LMS
@@ -97,6 +98,25 @@ export async function POST(request: Request): Promise<Response> {
   const amount: number | null = typeof session.amount_total === 'number' ? session.amount_total / 100 : null
   // Stable per-purchase ref so retries dedupe (payout logs key on it).
   const transactionRef: string = session.payment_intent || session.id || ''
+
+  // GA4 monetization: record every payment-link sale as a `purchase` event,
+  // whether it grants portal access or is an email-deliverable. Resolve a nice
+  // product name (LMS title by slug, else metadata, else a generic label).
+  // Best-effort — GA problems never affect the purchase.
+  let ga4ItemName = session.metadata?.product_name || lmsSlug || 'Stripe purchase'
+  if (lmsSlug) {
+    try {
+      const { data } = await createServiceSupabaseClient().from('products').select('title').eq('slug', lmsSlug).single()
+      if (data?.title) ga4ItemName = data.title
+    } catch { /* best-effort */ }
+  }
+  await sendGa4Purchase({
+    email,
+    transactionId: transactionRef,
+    value: amount,
+    currency: session.currency,
+    itemName: ga4ItemName,
+  })
 
   // Email-deliverable products (no LMS access): if the link carries a Kit tag
   // but no lms_slug, just tag the buyer in Kit and stop — no portal account,
