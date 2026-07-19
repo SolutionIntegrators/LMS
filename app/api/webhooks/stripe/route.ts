@@ -3,7 +3,6 @@ export const runtime = 'edge'
 import { processPurchase } from '@/lib/grant'
 import { tagSubscriber } from '@/lib/kit'
 import { pushAbandonedCart } from '@/lib/airtable'
-import { sendGa4Purchase } from '@/lib/analytics'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
 // Stripe webhook: on a completed checkout (from our Payment Links), grant LMS
@@ -99,10 +98,11 @@ export async function POST(request: Request): Promise<Response> {
   // Stable per-purchase ref so retries dedupe (payout logs key on it).
   const transactionRef: string = session.payment_intent || session.id || ''
 
-  // GA4 monetization: record every payment-link sale as a `purchase` event,
-  // whether it grants portal access or is an email-deliverable. Resolve a nice
-  // product name (LMS title by slug, else metadata, else a generic label).
-  // Best-effort — GA problems never affect the purchase.
+  // GA4 monetization: rather than fire the event here (which would show as
+  // direct/unassigned), stash the sale against the Checkout Session id. The
+  // client-side thank-you page reads it back and fires `purchase` from the
+  // buyer's browser (preserving source/medium/campaign); a cron backstop
+  // (/api/cron/ga-fallback) sends any the browser missed. Best-effort.
   let ga4ItemName = session.metadata?.product_name || lmsSlug || 'Stripe purchase'
   if (lmsSlug) {
     try {
@@ -110,13 +110,20 @@ export async function POST(request: Request): Promise<Response> {
       if (data?.title) ga4ItemName = data.title
     } catch { /* best-effort */ }
   }
-  await sendGa4Purchase({
-    email,
-    transactionId: transactionRef,
-    value: amount,
-    currency: session.currency,
-    itemName: ga4ItemName,
-  })
+  try {
+    if (session.id) {
+      await (createServiceSupabaseClient() as any).from('stripe_checkout_confirmations').upsert({
+        session_id: session.id,
+        transaction_ref: transactionRef || null,
+        amount,
+        currency: (session.currency || 'usd'),
+        product_title: ga4ItemName,
+        buyer_email: email || null,
+      } as any, { onConflict: 'session_id', ignoreDuplicates: false })
+    }
+  } catch (err) {
+    console.error('stripe_checkout_confirmations upsert failed:', err instanceof Error ? err.message : err)
+  }
 
   // Email-deliverable products (no LMS access): if the link carries a Kit tag
   // but no lms_slug, just tag the buyer in Kit and stop — no portal account,
