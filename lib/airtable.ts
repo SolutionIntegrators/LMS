@@ -327,6 +327,16 @@ export async function pushReferralPayout(opts: {
     const digitalProductId = await findDigitalProductId(opts.productTitle)
     if (digitalProductId) fields['Digital Products'] = [digitalProductId]
 
+    // Link the specific affiliate link that earned this payout (by tracking
+    // code), so the Affiliate Links table can roll up a per-link payout total.
+    // Only attribution payouts carry a code; revenue-share payouts don't.
+    if (opts.code) {
+      const qs = new URLSearchParams({ filterByFormula: `{Code}='${esc(opts.code)}'`, maxRecords: '1' })
+      const foundLink = await at(`${PARTNERS_BASE}/${LINKS_TABLE}?${qs.toString()}`)
+      const linkId = foundLink.records?.[0]?.id
+      if (linkId) fields['Affiliate Link'] = [linkId]
+    }
+
     if (opts.partnerEmail) {
       const qs = new URLSearchParams({
         filterByFormula: `LOWER({Email Address})='${esc(opts.partnerEmail.toLowerCase())}'`,
