@@ -21,11 +21,10 @@ const PARTNERS_PRODUCTS_TABLE = process.env.AIRTABLE_PARTNERS_PRODUCTS_TABLE || 
 // match. Anything not listed falls back to an exact (case-insensitive) name
 // match, so products named identically in both places link automatically.
 const DIGITAL_PRODUCT_ALIASES: Record<string, string> = {
-  'house of lume | dubsado proposal': 'House of Lume',
   'house of lume collection upsell': 'House of Lume | Collection',
   'aurum financial | dubsado proposal': 'Aurum Financial | Coded Dubsado Proposal',
-  // "Sell Anything With Dubsado" matches "Sell Anything with Dubsado" by
-  // case-insensitive name — no alias needed.
+  // "House of Lume | Coded Dubsado Proposal" and "Sell Anything with Dubsado"
+  // match the Backoffice Products record by name directly — no alias needed.
 }
 
 // Resolve a payout's product title to a Backoffice Products record id (or null).
