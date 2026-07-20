@@ -3,6 +3,7 @@ export const runtime = 'edge'
 import { processPurchase } from '@/lib/grant'
 import { tagSubscriber } from '@/lib/kit'
 import { pushAbandonedCart } from '@/lib/airtable'
+import { sendGa4AbandonedCheckout } from '@/lib/analytics'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
 // Stripe webhook: on a completed checkout (from our Payment Links), grant LMS
@@ -69,6 +70,14 @@ export async function POST(request: Request): Promise<Response> {
       amount: abAmount,
       productName,
       date: new Date().toISOString().slice(0, 10),
+    })
+    // Also record it in GA4 so abandoned checkouts are reportable by product.
+    await sendGa4AbandonedCheckout({
+      email: session.customer_details?.email || session.customer_email || null,
+      sessionId: session.id || '',
+      value: abAmount,
+      currency: session.currency,
+      itemName: productName,
     })
     return Response.json({ received: true, abandoned_cart: true })
   }

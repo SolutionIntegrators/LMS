@@ -23,6 +23,46 @@ function clientIdFromEmail(email: string): string {
   return `${a}.${b}`
 }
 
+// Low-level sender: fires one GA4 event via the Measurement Protocol.
+async function sendGa4(clientSeed: string, eventName: string, params: Record<string, unknown>): Promise<void> {
+  const measurementId = process.env.GA4_MEASUREMENT_ID
+  const apiSecret = process.env.GA4_API_SECRET
+  if (!measurementId || !apiSecret) return
+  try {
+    const body = {
+      client_id: clientIdFromEmail(clientSeed || 'anonymous'),
+      non_personalized_ads: true,
+      events: [{ name: eventName, params }],
+    }
+    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (!res.ok) console.error(`GA4 ${eventName} send failed:`, res.status, (await res.text()).slice(0, 200))
+  } catch (err) {
+    console.error(`sendGa4(${eventName}) failed:`, err instanceof Error ? err.message : err)
+  }
+}
+
+// Records a `checkout_abandoned` event when a Stripe payment-link session
+// expires unfinished. Lets GA4 report abandoned checkouts by product. Fires
+// ~24h after abandonment (Stripe's payment-link expiry) and, like other
+// server-side events, shows as direct/unassigned.
+export async function sendGa4AbandonedCheckout(opts: {
+  email?: string | null
+  sessionId: string
+  value: number | null
+  currency?: string | null
+  itemName: string
+}): Promise<void> {
+  const currency = (opts.currency || 'USD').toUpperCase()
+  const params: Record<string, unknown> = {
+    transaction_id: opts.sessionId,
+    currency,
+    items: [{ item_name: opts.itemName, quantity: 1, ...(opts.value != null ? { price: Number(opts.value) } : {}) }],
+  }
+  if (opts.value != null && !Number.isNaN(opts.value)) params.value = Number(opts.value)
+  await sendGa4(opts.email || opts.sessionId, 'checkout_abandoned', params)
+}
+
 export async function sendGa4Purchase(opts: {
   email: string
   transactionId: string
