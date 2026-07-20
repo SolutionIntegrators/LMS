@@ -1,6 +1,8 @@
 export const runtime = 'edge'
 
 import { processPurchase } from '@/lib/grant'
+import { sendGa4Purchase } from '@/lib/analytics'
+import { createServiceSupabaseClient } from '@/lib/supabase-service'
 
 // Dubsado (or any tool) → Zapier POST. Auth: send ZAPIER_WEBHOOK_SECRET as the
 // x-api-key header. Body may be JSON, form-encoded, or query-string.
@@ -59,19 +61,45 @@ export async function POST(request: Request) {
       { status: 400, headers: { 'Content-Type': 'application/json' } })
   }
 
+  const fullName = pick('full_name', 'fullname', 'name', 'customername') || null
+  const productName = pick('product_name', 'productname', 'product', 'offer', 'item') || null
+  const amount = amountRaw !== '' && !isNaN(Number(amountRaw)) ? Number(amountRaw) : null
+  const transactionRef = pick('transaction_ref', 'invoice', 'invoicenumber', 'orderid') || null
+
   const result = await processPurchase({
     email,
-    fullName: pick('full_name', 'fullname', 'name', 'customername') || null,
+    fullName,
     productSlug: productSlug || null,
     explicitTags,
-    productName: pick('product_name', 'productname', 'product', 'offer', 'item') || null,
+    productName,
     kitTagOverride: pick('kit_tag_id', 'kittag', 'kit_tag') || null,
-    amount: amountRaw !== '' && !isNaN(Number(amountRaw)) ? Number(amountRaw) : null,
-    transactionRef: pick('transaction_ref', 'invoice', 'invoicenumber', 'orderid') || null,
+    amount,
+    transactionRef,
     source: 'zapier_webhook',
     airtableSource: 'Zapier',
     origin: url.origin,
     today: new Date().toISOString().slice(0, 10),
   })
+
+  // GA4 monetization for Dubsado (this path is Dubsado-only; Stripe sales are
+  // tracked client-side, so there's no double-count). Server-side, so it shows
+  // as direct/unassigned. Fire only on a successful sale that carries an amount.
+  if (result.status === 200 && amount != null) {
+    let itemName = productName || productSlug || 'Dubsado purchase'
+    if (productSlug) {
+      try {
+        const { data } = await createServiceSupabaseClient().from('products').select('title').eq('slug', productSlug).single()
+        if (data?.title) itemName = data.title
+      } catch { /* best-effort */ }
+    }
+    await sendGa4Purchase({
+      email,
+      transactionId: transactionRef || `${email}-${new Date().toISOString().slice(0, 10)}`,
+      value: amount,
+      currency: 'USD',
+      itemName,
+    })
+  }
+
   return Response.json(result.body, { status: result.status })
 }
