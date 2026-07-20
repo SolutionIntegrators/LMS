@@ -109,8 +109,12 @@ export async function pushSaleToAirtable(input: SaleInput): Promise<void> {
       })
     }
 
-    // Product (find by name, else create)
-    let productId: string | null = await findRecord(T_PRODUCTS, `{Product Name}='${esc(input.productName)}'`)
+    // Product: match by LMS Slug first (stable, and lets the hub's display name
+    // differ from the LMS title without spawning duplicates), then by name, else
+    // create.
+    let productId: string | null = null
+    if (input.lmsSlug) productId = await findRecord(T_PRODUCTS, `{LMS Slug}='${esc(input.lmsSlug)}'`)
+    if (!productId) productId = await findRecord(T_PRODUCTS, `{Product Name}='${esc(input.productName)}'`)
     if (!productId) {
       const fields: Json = { 'Product Name': input.productName, Active: true }
       if (input.lmsSlug) fields['LMS Slug'] = input.lmsSlug
