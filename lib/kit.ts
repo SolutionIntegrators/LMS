@@ -31,6 +31,27 @@ export async function tagSubscriber(tagId: number | string, email: string): Prom
   }
 }
 
+// Remove a tag from a subscriber (by email). Used to pull someone out of the
+// "login nudge" flow once they've logged in. Best-effort; no-op if the
+// subscriber or tag link doesn't exist.
+export async function removeTagFromSubscriber(tagId: number | string, email: string): Promise<void> {
+  const k = key()
+  if (!k || !tagId || !email) return
+  const headers = { 'X-Kit-Api-Key': k, 'Content-Type': 'application/json' }
+  try {
+    const q = new URL(`${KIT_API}/subscribers`)
+    q.searchParams.set('email_address', email)
+    const res = await fetch(q.toString(), { headers })
+    if (!res.ok) return
+    const data: any = await res.json()
+    const sub = data.subscribers?.[0]
+    if (!sub?.id) return
+    await fetch(`${KIT_API}/tags/${tagId}/subscribers/${sub.id}`, { method: 'DELETE', headers })
+  } catch (err) {
+    console.error('Kit removeTagFromSubscriber error:', err instanceof Error ? err.message : err)
+  }
+}
+
 export interface KitTag { id: number; name: string }
 
 // List all tags (paginated) for the admin picker. Returns [] on any failure.

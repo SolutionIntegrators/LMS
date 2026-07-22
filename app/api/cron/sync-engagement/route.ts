@@ -2,6 +2,13 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { upsertMemberEngagement } from '@/lib/airtable'
+import { tagSubscriber, removeTagFromSubscriber } from '@/lib/kit'
+
+// Kit tag that drives the "haven't logged in" nurture sequence. Applied once
+// per person (deduped by email) — never per product — so multi-product buyers
+// only ever enter the sequence once.
+const LOGIN_NUDGE_TAG_ID = process.env.KIT_LOGIN_NUDGE_TAG_ID || '21369198'
+const NUDGE_AFTER_DAYS = 5
 
 // Daily engagement sync → the hub's "Member Engagement" table. Reads the
 // member_engagement view (per member+product: grant, first login, activity,
@@ -54,5 +61,42 @@ export async function GET(request: Request): Promise<Response> {
   })
 
   const { upserted } = await upsertMemberEngagement(rows)
-  return Response.json({ ok: true, members: rows.length, upserted })
+
+  // Kit login-nudge, deduped by email (one action per person, not per product):
+  //   • never logged in AND earliest grant > 5 days ago  → add the nudge tag
+  //   • has logged in                                     → remove it (exit nurture)
+  const now = Date.now()
+  const byEmail = new Map<string, { everLoggedIn: boolean; earliestGrant: number }>()
+  for (const r of (data ?? []) as any[]) {
+    const email = (r.email || '').toLowerCase().trim()
+    if (!email) continue
+    const grant = r.granted_at ? new Date(r.granted_at).getTime() : now
+    const cur = byEmail.get(email)
+    if (!cur) byEmail.set(email, { everLoggedIn: !!r.first_login_at, earliestGrant: grant })
+    else {
+      cur.everLoggedIn = cur.everLoggedIn || !!r.first_login_at
+      cur.earliestGrant = Math.min(cur.earliestGrant, grant)
+    }
+  }
+  // Gate: only touch Kit once the nurture sequence is live (set
+  // KIT_LOGIN_NUDGE_ENABLED=true). Until then we just report who WOULD be nudged.
+  const enabled = process.env.KIT_LOGIN_NUDGE_ENABLED === 'true'
+  let tagged = 0, untagged = 0
+  for (const [email, m] of byEmail) {
+    if (m.everLoggedIn) {
+      if (enabled) await removeTagFromSubscriber(LOGIN_NUDGE_TAG_ID, email)
+      untagged++
+    } else if ((now - m.earliestGrant) / (24 * 60 * 60 * 1000) >= NUDGE_AFTER_DAYS) {
+      if (enabled) await tagSubscriber(LOGIN_NUDGE_TAG_ID, email)
+      tagged++
+    }
+  }
+
+  return Response.json({
+    ok: true, members: rows.length, upserted, people: byEmail.size,
+    nudge_enabled: enabled,
+    login_nudge_tagged: enabled ? tagged : 0,
+    nudge_cleared: enabled ? untagged : 0,
+    would_nudge: tagged, would_clear: untagged,
+  })
 }
