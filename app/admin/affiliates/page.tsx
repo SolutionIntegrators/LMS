@@ -141,7 +141,7 @@ export default async function AdminAffiliatesPage() {
                     {products.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                   </select>
                 </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><span style={lbl}>Destination URL *</span><input name="destination_url" required placeholder="https://solutionintegrators.us/shop/…" style={inputSm} /></label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><span style={lbl}>Destination URL</span><input name="destination_url" placeholder="blank = the product's sales page" style={inputSm} /></label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}><span style={lbl}>Code (optional)</span><input name="code" placeholder="auto" style={inputSm} /></label>
                 <button type="submit" style={{ ...btnSm, background: 'var(--si-denim-blue)', color: 'white', borderColor: 'var(--si-denim-blue)', padding: '0.4rem 0.8rem' }}>+ Add link</button>
               </form>
