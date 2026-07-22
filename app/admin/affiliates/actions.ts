@@ -47,18 +47,27 @@ export async function createAffiliateLink(formData: FormData) {
   const db = await getAdminClient()
   const affiliate_id = formData.get('affiliate_id') as string
   const product_id = ((formData.get('product_id') as string) || '').trim() || null
-  const destination_url = (formData.get('destination_url') as string).trim()
-  if (!/^https?:\/\//.test(destination_url)) throw new Error('Destination URL must start with http(s)://')
+  const typedDestination = ((formData.get('destination_url') as string) || '').trim()
 
   const { data: aff } = await (db as any).from('affiliates').select('name, email').eq('id', affiliate_id).single()
   if (!aff) throw new Error('Affiliate not found')
 
-  // Look up the promoted product (for auto-code + the Airtable link row label).
-  let productSlug = '', productTitle = ''
+  // Look up the promoted product (for auto-code, the Airtable link label, and to
+  // default the destination to the product's sales page — so you never retype it).
+  let productSlug = '', productTitle = '', productSalesUrl = ''
   if (product_id) {
-    const { data: p } = await (db as any).from('products').select('slug, title').eq('id', product_id).single()
+    const { data: p } = await (db as any).from('products').select('slug, title, sales_page_url').eq('id', product_id).single()
     productSlug = p?.slug ?? ''
     productTitle = p?.title ?? ''
+    productSalesUrl = (p?.sales_page_url ?? '').trim()
+  }
+
+  // Blank destination → use the product's own sales page automatically.
+  const destination_url = typedDestination || productSalesUrl
+  if (!/^https?:\/\//.test(destination_url)) {
+    throw new Error(product_id
+      ? 'This product has no Sales page URL yet — add one on the product, or type a destination here.'
+      : 'Pick a product (to use its sales page) or type a destination URL starting with http(s)://.')
   }
 
   // Code: explicit, else auto from affiliate name (+ product slug), made unique.
