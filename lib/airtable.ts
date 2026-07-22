@@ -15,6 +15,9 @@ const LINKS_TABLE = process.env.AIRTABLE_LINKS_TABLE || 'tblCBzZBVXlLjJp6z'
 const ABANDONED_TABLE = process.env.AIRTABLE_ABANDONED_TABLE || 'tblE2EhqFBl671zpE'
 // "Products" (digital products) table in the Backoffice base, linked from payouts.
 const PARTNERS_PRODUCTS_TABLE = process.env.AIRTABLE_PARTNERS_PRODUCTS_TABLE || 'tbl26UczLHCUMb2zO'
+// Engagement + email-issue tables in the sales hub (BASE_ID).
+const ENGAGEMENT_TABLE = process.env.AIRTABLE_ENGAGEMENT_TABLE || 'tbl3xKlM5DWcAH3Rq'
+const EMAIL_ISSUES_TABLE = process.env.AIRTABLE_EMAIL_ISSUES_TABLE || 'tblOQDjsZy1HWGQCZ'
 
 // Payout productTitle (an LMS product title or a rev-share rule label) → the
 // exact {Name} in the Backoffice Products table, for the ones whose names don't
@@ -79,6 +82,57 @@ async function createRecord(table: string, fields: Json): Promise<string> {
     body: JSON.stringify({ fields, typecast: true }),
   })
   return data.id
+}
+
+// Upsert member-engagement rows into the hub (keyed on "Member + Product").
+// Uses Airtable's performUpsert so the daily sync is idempotent. Best-effort.
+export async function upsertMemberEngagement(rows: Array<Record<string, unknown>>): Promise<{ upserted: number }> {
+  if (!token() || rows.length === 0) return { upserted: 0 }
+  let upserted = 0
+  try {
+    for (let i = 0; i < rows.length; i += 10) {
+      const batch = rows.slice(i, i + 10).map((fields) => ({ fields }))
+      const res = await at(`${BASE_ID}/${ENGAGEMENT_TABLE}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          performUpsert: { fieldsToMergeOn: ['Member + Product'] },
+          records: batch,
+          typecast: true,
+        }),
+      })
+      upserted += (res.records?.length ?? 0)
+    }
+  } catch (err) {
+    console.error('upsertMemberEngagement failed:', err instanceof Error ? err.message : err)
+  }
+  return { upserted }
+}
+
+// Log an email delivery problem (bounce/complaint/etc) into the hub. Best-effort.
+export async function pushEmailIssue(opts: {
+  emailId?: string | null
+  recipient: string
+  subject?: string | null
+  event: string
+  bounceType?: string | null
+  detail?: string | null
+  occurredAt: string // YYYY-MM-DD
+}): Promise<void> {
+  if (!token() || !opts.recipient) return
+  try {
+    const fields: Json = {
+      Recipient: opts.recipient,
+      Event: opts.event,
+      'Occurred At': opts.occurredAt,
+    }
+    if (opts.emailId) fields['Email ID'] = opts.emailId
+    if (opts.subject) fields['Subject'] = opts.subject
+    if (opts.bounceType) fields['Bounce Type'] = opts.bounceType
+    if (opts.detail) fields['Detail'] = opts.detail
+    await at(`${BASE_ID}/${EMAIL_ISSUES_TABLE}`, { method: 'POST', body: JSON.stringify({ fields, typecast: true }) })
+  } catch (err) {
+    console.error('pushEmailIssue failed:', err instanceof Error ? err.message : err)
+  }
 }
 
 export interface SaleInput {

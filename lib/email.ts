@@ -60,6 +60,13 @@ export async function sendProductAccessEmail(opts: {
   await sendEmail(opts.to, `You now have access to ${opts.productTitle}`, html)
 }
 
+// Internal heads-up to the shop owner (e.g. an email bounced). Goes to
+// ADMIN_ALERT_EMAIL, falling back to the FROM address (connect@…).
+export async function sendAdminAlert(subject: string, bodyInner: string): Promise<void> {
+  const to = process.env.ADMIN_ALERT_EMAIL || FROM
+  await sendEmail(to, subject, shell(bodyInner))
+}
+
 // Sent to an affiliate/partner when their tracking link is created.
 export async function sendAffiliateWelcomeEmail(opts: {
   to: string
