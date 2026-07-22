@@ -2,12 +2,13 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { upsertMemberEngagement } from '@/lib/airtable'
-import { tagSubscriber, removeTagFromSubscriber } from '@/lib/kit'
+import { tagSubscriber, removeTagFromSubscriber, addSubscriberToSequence } from '@/lib/kit'
 
-// Kit tag that drives the "haven't logged in" nurture sequence. Applied once
-// per person (deduped by email) — never per product — so multi-product buyers
-// only ever enter the sequence once.
+// "Haven't logged in" nurture, actioned once per person (deduped by email) —
+// never per product — so multi-product buyers only ever enter it once.
+// The Kit sequence is the nurture; the tag is for visibility/segmentation.
 const LOGIN_NUDGE_TAG_ID = process.env.KIT_LOGIN_NUDGE_TAG_ID || '21369198'
+const LOGIN_NUDGE_SEQUENCE_ID = process.env.KIT_LOGIN_NUDGE_SEQUENCE_ID || '2836049' // "Goodies Shop | No Login"
 const NUDGE_AFTER_DAYS = 5
 
 // Daily engagement sync → the hub's "Member Engagement" table. Reads the
@@ -87,7 +88,10 @@ export async function GET(request: Request): Promise<Response> {
       if (enabled) await removeTagFromSubscriber(LOGIN_NUDGE_TAG_ID, email)
       untagged++
     } else if ((now - m.earliestGrant) / (24 * 60 * 60 * 1000) >= NUDGE_AFTER_DAYS) {
-      if (enabled) await tagSubscriber(LOGIN_NUDGE_TAG_ID, email)
+      if (enabled) {
+        await addSubscriberToSequence(LOGIN_NUDGE_SEQUENCE_ID, email)
+        await tagSubscriber(LOGIN_NUDGE_TAG_ID, email)
+      }
       tagged++
     }
   }

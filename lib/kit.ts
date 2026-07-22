@@ -31,6 +31,24 @@ export async function tagSubscriber(tagId: number | string, email: string): Prom
   }
 }
 
+// Enroll a subscriber into a sequence (by email). Ensures the subscriber exists
+// first, then adds them. Idempotent — Kit won't re-enroll or restart someone
+// already in the sequence. Best-effort.
+export async function addSubscriberToSequence(sequenceId: number | string, email: string): Promise<void> {
+  const k = key()
+  if (!k || !sequenceId || !email) return
+  const headers = { 'X-Kit-Api-Key': k, 'Content-Type': 'application/json' }
+  try {
+    await fetch(`${KIT_API}/subscribers`, { method: 'POST', headers, body: JSON.stringify({ email_address: email }) })
+    const res = await fetch(`${KIT_API}/sequences/${sequenceId}/subscribers`, {
+      method: 'POST', headers, body: JSON.stringify({ email_address: email }),
+    })
+    if (!res.ok) console.error('Kit addSubscriberToSequence failed:', res.status, (await res.text()).slice(0, 200))
+  } catch (err) {
+    console.error('Kit addSubscriberToSequence error:', err instanceof Error ? err.message : err)
+  }
+}
+
 // Remove a tag from a subscriber (by email). Used to pull someone out of the
 // "login nudge" flow once they've logged in. Best-effort; no-op if the
 // subscriber or tag link doesn't exist.
