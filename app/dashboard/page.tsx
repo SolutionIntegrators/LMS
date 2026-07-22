@@ -6,7 +6,9 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import NavBar from '@/components/NavBar'
 import ProductCard from '@/components/ProductCard'
 import WelcomeBanner from '@/components/WelcomeBanner'
+import UpsellRow from '@/components/UpsellRow'
 import { recordAttributionFromCookie, ATTR_COOKIE } from '@/lib/affiliate'
+import { getRecommendedProducts } from '@/lib/recommendations'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -53,6 +55,10 @@ export default async function DashboardPage() {
       .order('title')
     products.push(...(productRows ?? []))
   }
+
+  // Upsell recommendations based on what the user owns (resolved server-side
+  // with the service role, since RLS hides un-owned products).
+  const recommended = await getRecommendedProducts(productIds)
 
   // Fetch profile and announcement in parallel
   const [{ data: profile }, { data: settings }] = await Promise.all([
@@ -160,6 +166,8 @@ export default async function DashboardPage() {
 
           </div>
         )}
+
+        <UpsellRow products={recommended} />
       </main>
     </div>
   )

@@ -58,6 +58,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   // Kit tags for the settings picker (empty list if Kit isn't configured).
   const kitTags = await listKitTags()
 
+  // All products for the upsell "recommended products" picker (admin sees all via RLS).
+  const { data: allProducts } = await supabase.from('products').select('id, title').order('title')
+
   const { data: modules } = await supabase
     .from('modules')
     .select('*, lessons(id, title, sort_order, is_published, content_type)')
@@ -98,7 +101,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '1rem', color: 'var(--si-denim-blue)', marginBottom: '1rem' }}>
           Product Settings
         </h2>
-        <ProductSettingsForm product={product} kitTags={kitTags} />
+        <ProductSettingsForm product={product} kitTags={kitTags} allProducts={(allProducts as any) ?? []} />
         <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--si-border)' }}>
           <DeleteProductButton productId={product.id} />
         </div>
