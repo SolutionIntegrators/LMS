@@ -29,7 +29,8 @@ async function saveAction(_prev: State, formData: FormData): Promise<State> {
   }
 }
 
-export default function ProductSettingsForm({ product, kitTags = [] }: { product: any; kitTags?: { id: number; name: string }[] }) {
+export default function ProductSettingsForm({ product, kitTags = [], allProducts = [] }: { product: any; kitTags?: { id: number; name: string }[]; allProducts?: { id: string; title: string }[] }) {
+  const otherProducts = allProducts.filter((p) => p.id !== product.id)
   const [state, formAction, pending] = useActionState(saveAction, null)
 
   return (
@@ -85,6 +86,57 @@ export default function ProductSettingsForm({ product, kitTags = [] }: { product
           Where affiliate links for this product redirect. Filling this in makes the product available for partners to request a link.
         </span>
       </label>
+
+      {/* Upsell — "You may also be interested in". Two parts: (1) what owners of
+          THIS product get recommended; (2) how THIS product's card behaves when
+          it's recommended elsewhere. */}
+      <div style={{ border: '1px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.875rem 1rem', background: 'var(--si-linen)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', fontWeight: 600, color: 'var(--si-dark-text)' }}>
+          Upsell — &ldquo;You may also be interested in&rdquo;
+        </span>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>
+            Recommend these products to owners of this one
+          </span>
+          <select name="recommended_product_ids" multiple defaultValue={product.recommended_product_ids ?? []}
+            style={{ ...inputStyle, minHeight: 132, padding: '0.4rem' }}>
+            {otherProducts.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+          </select>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+            Cmd/Ctrl-click to select multiple. Shown as locked cards on the buyer&apos;s dashboard.
+          </span>
+        </label>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
+          <input type="hidden" name="recommend_same_category" value="false" />
+          <input type="checkbox" name="recommend_same_category" value="true" defaultChecked={product.recommend_same_category ?? false}
+            style={{ width: 16, height: 16, accentColor: 'var(--si-burnt-orange)' }} />
+          Also recommend other products in the same category
+        </label>
+
+        <div style={{ borderTop: '1px solid var(--si-border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>
+            When this product is recommended, its card&apos;s button…
+          </span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
+            <input type="radio" name="upsell_cta_mode" value="new_tab" defaultChecked={(product.upsell_cta_mode ?? 'new_tab') !== 'lightbox'} style={{ accentColor: 'var(--si-burnt-orange)' }} />
+            Opens the sales page / checkout in a new tab
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', color: 'var(--si-dark-text)', cursor: 'pointer' }}>
+            <input type="radio" name="upsell_cta_mode" value="lightbox" defaultChecked={product.upsell_cta_mode === 'lightbox'} style={{ accentColor: 'var(--si-burnt-orange)' }} />
+            Opens the sales page in a pop-up inside the portal (needs a page that allows embedding)
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Checkout URL (optional — overrides the sales page for the button)</span>
+            <input name="checkout_url" defaultValue={product.checkout_url ?? ''} placeholder="https://…/checkout or Stripe payment link" style={inputStyle} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 240 }}>
+            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Button label</span>
+            <input name="upsell_cta_label" defaultValue={product.upsell_cta_label ?? 'Unlock →'} placeholder="Unlock →" style={inputStyle} />
+          </label>
+        </div>
+      </div>
 
       {/* Announcement bar — shows on this product's page for everyone who owns it */}
       <div style={{ border: '1px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.875rem 1rem', background: 'var(--si-linen)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

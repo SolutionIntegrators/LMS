@@ -71,9 +71,19 @@ export async function updateProduct(formData: FormData) {
   const slug = typedSlug ? toSlug(typedSlug) : origSlug
   const slugChanged = slug && slug !== origSlug
 
+  // Upsell / "You may also be interested in" config
+  const recommended_product_ids = (formData.getAll('recommended_product_ids') as string[])
+    .map((v) => String(v).trim())
+    .filter((v) => v && v !== id) // never recommend itself
+  const recommend_same_category = formData.getAll('recommend_same_category').includes('true')
+  const checkout_url = ((formData.get('checkout_url') as string) || '').trim() || null
+  const upsell_cta_mode = (formData.get('upsell_cta_mode') as string) === 'lightbox' ? 'lightbox' : 'new_tab'
+  const upsell_cta_label = ((formData.get('upsell_cta_label') as string) || '').trim() || 'Unlock →'
+
   const update: Record<string, unknown> = {
     title, description, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
     announcement_active, announcement_text, kit_tag_id, sales_page_url,
+    recommended_product_ids, recommend_same_category, checkout_url, upsell_cta_mode, upsell_cta_label,
   }
   if (slugChanged) update.slug = slug
 
