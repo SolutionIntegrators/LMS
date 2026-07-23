@@ -4,39 +4,30 @@ import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { getClickUpResolution, CLIENT_VISIBLE_STATUSES } from '@/lib/clickup'
 import { sendSupportResolvedEmail } from '@/lib/email'
 
-// ClickUp signs webhook payloads with an HMAC-SHA256 of the raw body, using
-// the `secret` returned when the webhook was registered (POST
-// /team/{team_id}/webhook) — sent back as the `X-Signature` header. Verify
-// with the Web Crypto API (Node's `crypto` module isn't available on edge).
-async function verifySignature(rawBody: string, signatureHeader: string | null, secret: string): Promise<boolean> {
-  if (!signatureHeader) return false
-  const key = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(rawBody))
-  const hex = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
-  return hex === signatureHeader
-}
-
+// Auth: a ClickUp Automation ("when status changes → Send Webhook") posts here
+// with a custom header carrying a shared secret — same pattern as
+// /api/webhooks/zapier's x-api-key check.
 export async function POST(request: Request): Promise<Response> {
   const secret = process.env.CLICKUP_WEBHOOK_SECRET
   if (!secret) return new Response('CLICKUP_WEBHOOK_SECRET not configured', { status: 503 })
+  if (request.headers.get('x-webhook-secret') !== secret) return new Response('Unauthorized', { status: 401 })
 
   const rawBody = await request.text()
-  const signature = request.headers.get('x-signature')
-  if (!(await verifySignature(rawBody, signature, secret))) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
   let payload: any = {}
   try { payload = JSON.parse(rawBody) } catch { return new Response('Bad payload', { status: 400 }) }
 
-  // Defensive parsing (ClickUp's exact shape can vary by event) — mirrors
-  // the tolerant style already used in /api/webhooks/zapier.
-  const taskId: string | undefined = payload.task_id ?? payload.taskId
+  // Defensive parsing — a native ClickUp webhook sends a history-item diff
+  // (`history_items[0].after.status`), while an Automation "Send Webhook"
+  // action sends the task's current fields instead (`status.status`, or a
+  // plain `status` string). Accept whichever shape shows up.
+  const taskId: string | undefined = payload.task_id ?? payload.taskId ?? payload.id
   if (!taskId) return new Response('Missing task_id', { status: 400 })
 
-  const newStatusRaw = payload.history_items?.[0]?.after?.status ?? payload.status ?? null
+  const newStatusRaw =
+    payload.history_items?.[0]?.after?.status ??
+    payload.status?.status ??
+    payload.status ??
+    null
   const newStatus = typeof newStatusRaw === 'string' ? newStatusRaw.toLowerCase().trim() : null
 
   const db = createServiceSupabaseClient() as any
