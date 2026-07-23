@@ -10,7 +10,7 @@ async function requireAdmin() {
   if (!user) throw new Error('Unauthenticated')
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') throw new Error('Forbidden')
-  return supabase
+  return { supabase, adminId: user.id }
 }
 
 // Create a user (if needed), send the branded invite email, set their name,
@@ -59,39 +59,66 @@ export async function inviteUser(formData: FormData) {
     if (error) throw new Error(`User invited, but grant failed: ${error.message}`)
   }
 
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
 }
 
 export async function updateUserName(formData: FormData) {
-  const db = await requireAdmin()
+  const { supabase } = await requireAdmin()
   const userId = formData.get('user_id') as string
   const fullName = ((formData.get('full_name') as string) || '').trim() || null
-  const { error } = await (db.from('profiles') as any).update({ full_name: fullName }).eq('id', userId)
+  const { error } = await (supabase.from('profiles') as any).update({ full_name: fullName }).eq('id', userId)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
+}
+
+// New: role is now editable from the People panel (previously display-only).
+// Guarded against self-demotion so an admin can't accidentally lock themselves out.
+export async function updateUserRole(formData: FormData) {
+  const { supabase, adminId } = await requireAdmin()
+  const userId = formData.get('user_id') as string
+  const role = formData.get('role') as string
+  if (role !== 'user' && role !== 'admin') throw new Error('Invalid role')
+  if (userId === adminId) throw new Error("You can't change your own role")
+
+  const { error } = await (supabase.from('profiles') as any).update({ role }).eq('id', userId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/people')
 }
 
 export async function grantProduct(formData: FormData) {
-  const db = await requireAdmin()
+  const { supabase } = await requireAdmin()
   const userId = formData.get('user_id') as string
   const productId = formData.get('product_id') as string
   if (!productId) return
-  const { error } = await (db.from('user_product_access') as any).upsert({
+  const { error } = await (supabase.from('user_product_access') as any).upsert({
     user_id: userId,
     product_id: productId,
     granted_by: 'admin',
     granted_at: new Date().toISOString(),
   }, { onConflict: 'user_id,product_id', ignoreDuplicates: true })
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
 }
 
 export async function revokeProduct(formData: FormData) {
-  const db = await requireAdmin()
+  const { supabase } = await requireAdmin()
   const userId = formData.get('user_id') as string
   const productId = formData.get('product_id') as string
-  const { error } = await db.from('user_product_access').delete()
+  const { error } = await supabase.from('user_product_access').delete()
     .eq('user_id', userId).eq('product_id', productId)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
+}
+
+// New: remove a user entirely (auth user + profile; user_product_access,
+// activity_logs, etc. cascade via their FK to profiles/auth.users).
+export async function deleteUser(formData: FormData) {
+  const { adminId } = await requireAdmin()
+  const userId = formData.get('user_id') as string
+  if (userId === adminId) throw new Error("You can't remove your own account")
+
+  const svc = createServiceSupabaseClient()
+  const { error } = await svc.auth.admin.deleteUser(userId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/people')
 }

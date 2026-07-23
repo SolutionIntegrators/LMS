@@ -58,8 +58,10 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname === '/admin') return redirectTo('/admin/content')
 
-  // Manage Access was merged into the Users page
-  if (user && pathname === '/admin/access') return redirectTo('/admin/users')
+  // Manage Access, Users, and Affiliates were merged into the People page
+  if (user && (pathname === '/admin/access' || pathname === '/admin/users' || pathname === '/admin/affiliates')) {
+    return redirectTo('/admin/people')
+  }
 
   return supabaseResponse
 }

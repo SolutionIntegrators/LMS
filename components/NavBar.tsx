@@ -87,7 +87,7 @@ export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
             </a>
           )}
           {role === 'admin' && (
-            <Link href="/admin/users" style={highlightLinkStyle}>Admin</Link>
+            <Link href="/admin/people" style={highlightLinkStyle}>Admin</Link>
           )}
           <Link href="/profile" title="My Profile" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
             {avatar}
@@ -146,7 +146,7 @@ export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
             </a>
           )}
           {role === 'admin' && (
-            <Link href="/admin/users" style={{ ...highlightLinkStyle, padding: '0.625rem 0' }} onClick={() => setMenuOpen(false)}>Admin</Link>
+            <Link href="/admin/people" style={{ ...highlightLinkStyle, padding: '0.625rem 0' }} onClick={() => setMenuOpen(false)}>Admin</Link>
           )}
           <Link href="/profile" style={{ ...linkStyle, padding: '0.625rem 0' }} onClick={() => setMenuOpen(false)}>My Profile</Link>
           <button

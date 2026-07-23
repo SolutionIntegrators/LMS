@@ -398,5 +398,5 @@ export async function updateUserTags(formData: FormData) {
 
   const { error } = await (db.from('profiles') as any).update({ tags }).eq('id', userId)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/people')
 }

@@ -1,6 +1,6 @@
 'use client'
 
-export default function UsersError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function PeopleError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif' }}>
       <h2 style={{ color: '#8B2A1A', marginBottom: '1rem' }}>Something went wrong</h2>
