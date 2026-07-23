@@ -9,9 +9,10 @@ import { branding } from '@/lib/branding'
 interface NavBarProps {
   email: string
   role: string
+  avatarUrl?: string | null
 }
 
-export default function NavBar({ email, role }: NavBarProps) {
+export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -95,19 +96,36 @@ export default function NavBar({ email, role }: NavBarProps) {
             Admin
           </Link>
         )}
-        <span
-          style={{
-            color: 'rgba(252,241,232,0.6)',
-            fontFamily: 'DM Sans, sans-serif',
-            fontSize: '0.875rem',
-            maxWidth: 180,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
+        <Link
+          href="/profile"
+          title="My Profile"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
         >
-          {email}
-        </span>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+            background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ color: 'white', fontFamily: 'Georgia, serif', fontSize: '0.9rem' }}>{(email[0] || '?').toUpperCase()}</span>
+            )}
+          </div>
+          <span
+            style={{
+              color: 'rgba(252,241,232,0.6)',
+              fontFamily: 'DM Sans, sans-serif',
+              fontSize: '0.875rem',
+              maxWidth: 150,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {email}
+          </span>
+        </Link>
         <button
           onClick={handleSignOut}
           style={{

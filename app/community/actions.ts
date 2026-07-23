@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { notifyNewThread, notifyNewReply } from '@/lib/community'
+import { REACTION_EMOJIS, type ReactionSummary } from '@/lib/reactions'
 
 async function requireUser() {
   const supabase = await createServerSupabaseClient()
@@ -34,6 +35,23 @@ function friendlyInsertError(error: { message: string; code?: string }): Error {
     return new Error('Your access to this community may have expired.')
   }
   return new Error(error.message)
+}
+
+// Always returns all REACTION_EMOJIS (count 0 where unused) so the UI can
+// render a stable row of reaction buttons.
+function summarizeReactions(rows: Array<{ emoji: string; user_id: string }>, myUserId: string): ReactionSummary[] {
+  const byEmoji = new Map<string, { count: number; reactedByMe: boolean }>()
+  for (const r of rows) {
+    const cur = byEmoji.get(r.emoji) ?? { count: 0, reactedByMe: false }
+    cur.count += 1
+    if (r.user_id === myUserId) cur.reactedByMe = true
+    byEmoji.set(r.emoji, cur)
+  }
+  return REACTION_EMOJIS.map((emoji) => ({
+    emoji,
+    count: byEmoji.get(emoji)?.count ?? 0,
+    reactedByMe: byEmoji.get(emoji)?.reactedByMe ?? false,
+  }))
 }
 
 export async function getThreadList(productId: string) {
@@ -82,6 +100,19 @@ export async function getThreadDetail(threadId: string) {
     .eq('user_id', user.id)
     .maybeSingle()
 
+  const replyIds = (replies ?? []).map((r: any) => r.id)
+  const { data: threadReactions } = await (supabase as any)
+    .from('community_reactions').select('emoji, user_id').eq('thread_id', threadId)
+  const { data: replyReactionRows } = replyIds.length
+    ? await (supabase as any).from('community_reactions').select('reply_id, emoji, user_id').in('reply_id', replyIds)
+    : { data: [] }
+  const replyReactionsByReplyId = new Map<string, Array<{ emoji: string; user_id: string }>>()
+  for (const r of replyReactionRows ?? []) {
+    const list = replyReactionsByReplyId.get(r.reply_id) ?? []
+    list.push(r)
+    replyReactionsByReplyId.set(r.reply_id, list)
+  }
+
   const authors = await getAuthorNames([thread.author_user_id, ...(replies ?? []).map((r: any) => r.author_user_id)])
 
   return {
@@ -91,12 +122,16 @@ export async function getThreadDetail(threadId: string) {
     createdAt: thread.created_at,
     productId: thread.product_id,
     authorName: authors.get(thread.author_user_id) || 'Someone',
+    isAuthor: thread.author_user_id === user.id,
     isMuted: !!mute,
+    reactions: summarizeReactions(threadReactions ?? [], user.id),
     replies: (replies ?? []).map((r: any) => ({
       id: r.id,
       body: r.body,
       createdAt: r.created_at,
       authorName: authors.get(r.author_user_id) || 'Someone',
+      isAuthor: r.author_user_id === user.id,
+      reactions: summarizeReactions(replyReactionsByReplyId.get(r.id) ?? [], user.id),
     })),
   }
 }
@@ -173,4 +208,85 @@ export async function toggleThreadMute(formData: FormData) {
   } else {
     await (supabase as any).from('community_thread_mutes').delete().eq('user_id', user.id).eq('thread_id', threadId)
   }
+}
+
+// Toggles the current user's reaction: adds it if not present, removes it if
+// already there. Exactly one of thread_id/reply_id must be set.
+export async function toggleReaction(formData: FormData) {
+  const { supabase, user } = await requireUser()
+  const threadId = (formData.get('thread_id') as string) || ''
+  const replyId = (formData.get('reply_id') as string) || ''
+  const emoji = formData.get('emoji') as string
+  if (!REACTION_EMOJIS.includes(emoji as any)) throw new Error('Invalid reaction')
+  if (!threadId && !replyId) throw new Error('Missing target')
+
+  let existingQuery = (supabase as any).from('community_reactions').select('id').eq('user_id', user.id).eq('emoji', emoji)
+  existingQuery = threadId ? existingQuery.eq('thread_id', threadId) : existingQuery.eq('reply_id', replyId)
+  const { data: existing } = await existingQuery.maybeSingle()
+
+  if (existing) {
+    await (supabase as any).from('community_reactions').delete().eq('id', existing.id)
+  } else {
+    const { error } = await (supabase as any).from('community_reactions').insert({
+      thread_id: threadId || null, reply_id: replyId || null, user_id: user.id, emoji,
+    })
+    if (error) throw friendlyInsertError(error)
+  }
+}
+
+export async function editThread(formData: FormData) {
+  const { supabase, user } = await requireUser()
+  const threadId = formData.get('thread_id') as string
+  const title = ((formData.get('title') as string) || '').trim()
+  const body = ((formData.get('body') as string) || '').trim()
+  const lessonSlugForRevalidate = (formData.get('lesson_id') as string) || ''
+  if (!title || !body) throw new Error('Title and body are required')
+
+  const { data: existing } = await (supabase as any).from('community_threads').select('author_user_id').eq('id', threadId).single()
+  if (!existing || existing.author_user_id !== user.id) throw new Error('You can only edit your own threads')
+
+  const { error } = await (supabase as any).from('community_threads').update({ title, body }).eq('id', threadId)
+  if (error) throw friendlyInsertError(error)
+  if (lessonSlugForRevalidate) revalidatePath(`/lessons/${lessonSlugForRevalidate}`)
+}
+
+export async function deleteThread(formData: FormData) {
+  const { supabase, user } = await requireUser()
+  const threadId = formData.get('thread_id') as string
+  const lessonSlugForRevalidate = (formData.get('lesson_id') as string) || ''
+
+  const { data: existing } = await (supabase as any).from('community_threads').select('author_user_id').eq('id', threadId).single()
+  if (!existing || existing.author_user_id !== user.id) throw new Error('You can only delete your own threads')
+
+  const { error } = await (supabase as any).from('community_threads').delete().eq('id', threadId)
+  if (error) throw new Error(error.message)
+  if (lessonSlugForRevalidate) revalidatePath(`/lessons/${lessonSlugForRevalidate}`)
+}
+
+export async function editReply(formData: FormData) {
+  const { supabase, user } = await requireUser()
+  const replyId = formData.get('reply_id') as string
+  const body = ((formData.get('body') as string) || '').trim()
+  const lessonSlugForRevalidate = (formData.get('lesson_id') as string) || ''
+  if (!body) throw new Error('Reply cannot be empty')
+
+  const { data: existing } = await (supabase as any).from('community_replies').select('author_user_id').eq('id', replyId).single()
+  if (!existing || existing.author_user_id !== user.id) throw new Error('You can only edit your own replies')
+
+  const { error } = await (supabase as any).from('community_replies').update({ body }).eq('id', replyId)
+  if (error) throw friendlyInsertError(error)
+  if (lessonSlugForRevalidate) revalidatePath(`/lessons/${lessonSlugForRevalidate}`)
+}
+
+export async function deleteReply(formData: FormData) {
+  const { supabase, user } = await requireUser()
+  const replyId = formData.get('reply_id') as string
+  const lessonSlugForRevalidate = (formData.get('lesson_id') as string) || ''
+
+  const { data: existing } = await (supabase as any).from('community_replies').select('author_user_id').eq('id', replyId).single()
+  if (!existing || existing.author_user_id !== user.id) throw new Error('You can only delete your own replies')
+
+  const { error } = await (supabase as any).from('community_replies').delete().eq('id', replyId)
+  if (error) throw new Error(error.message)
+  if (lessonSlugForRevalidate) revalidatePath(`/lessons/${lessonSlugForRevalidate}`)
 }

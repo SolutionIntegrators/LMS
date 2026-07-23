@@ -179,7 +179,28 @@ window after purchase (default 6 months — set per product).
 - Threads/replies are RLS-gated the same way as everything else (see
   `has_active_community_access()` in `0013_community.sql`) — a student who
   never bought the course, or whose window lapsed, cannot read or post even by
-  guessing a thread URL.
+  guessing a thread URL. Deactivating a product also revokes community access,
+  even for buyers whose access row is still on file.
+- **Formatting:** posts support the same lightweight markdown as lesson text
+  blocks — `**bold**`, `*italic*`, `[label](https://url)`, and lines starting
+  with `- ` become bullets (see `lib/markdown.ts`).
+- **Reactions:** students can react to any thread or reply with a fixed set of
+  emoji (👍 ❤️ 😂 🎉 🤔 👀 — see `lib/reactions.ts`). One reaction per emoji per
+  person; clicking an already-picked emoji removes it.
+- **Edit / delete:** the author of a thread or reply can edit or delete it at
+  any time (deleting a thread also deletes its replies). Admins can always
+  edit/delete anything via **Admin → Content**.
+
+## SOP 13 — Student profile & avatars
+
+Every student has a **My Profile** page (top-right avatar in the nav, next to
+their email) where they can:
+- Update their display **name**.
+- Upload a **profile photo** (stored in the public `avatars` Supabase Storage
+  bucket, one folder per user — see `0015_community_reactions_profile.sql`).
+- Turn **community notifications on/off per course** they've bought (separate
+  from per-thread mute, which only silences one thread) — this edits the same
+  `community_subscriptions` row that's created automatically on purchase.
 
 ## Emails
 

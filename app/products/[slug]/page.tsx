@@ -19,9 +19,10 @@ export default async function ProductPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null // middleware handles redirect to /login
 
-  const { data: profile } = await supabase
+  // Cast: avatar_url is newer than the generated DB types.
+  const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('email, full_name, role, tags')
+    .select('email, full_name, role, tags, avatar_url')
     .eq('id', user.id)
     .single()
 
@@ -103,7 +104,7 @@ export default async function ProductPage({
           </Link>
         </div>
       )}
-      <NavBar email={profile?.email ?? ''} role={profile?.role ?? 'user'} />
+      <NavBar email={profile?.email ?? ''} role={profile?.role ?? 'user'} avatarUrl={(profile as any)?.avatar_url ?? null} />
 
       {/* Per-product announcement bar — only owners of this product reach this page */}
       {(product as any).announcement_active && (product as any).announcement_text && (

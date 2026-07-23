@@ -24,9 +24,10 @@ export default async function LessonPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null // middleware handles redirect to /login
 
-  const { data: profile } = await supabase
+  // Cast: avatar_url is newer than the generated DB types.
+  const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('email, full_name, role, tags')
+    .select('email, full_name, role, tags, avatar_url')
     .eq('id', user.id)
     .single()
 
@@ -144,7 +145,7 @@ export default async function LessonPage({
           </Link>
         </div>
       )}
-      <NavBar email={profileData?.email ?? ''} role={profileData?.role ?? 'user'} />
+      <NavBar email={profileData?.email ?? ''} role={profileData?.role ?? 'user'} avatarUrl={profileData?.avatar_url ?? null} />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem 1.5rem' }}>
         {/* Breadcrumb */}

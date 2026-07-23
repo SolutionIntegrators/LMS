@@ -62,7 +62,7 @@ export default async function DashboardPage() {
 
   // Fetch profile and announcement in parallel
   const [{ data: profile }, { data: settings }] = await Promise.all([
-    supabase.from('profiles').select('full_name, email, role').eq('id', user.id).single(),
+    (supabase as any).from('profiles').select('full_name, email, role, avatar_url').eq('id', user.id).single(),
     (supabase as any).from('site_settings').select('key, value'),
   ])
 
@@ -72,7 +72,7 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
-      <NavBar email={(profile as any)?.email ?? user.email ?? ''} role={(profile as any)?.role ?? 'user'} />
+      <NavBar email={(profile as any)?.email ?? user.email ?? ''} role={(profile as any)?.role ?? 'user'} avatarUrl={(profile as any)?.avatar_url ?? null} />
 
       {/* Announcement bar */}
       {announcementActive && announcementText && (
