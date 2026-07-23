@@ -6,7 +6,7 @@ import ThreadDetail, { ThreadDetailData } from './ThreadDetail'
 import NewThreadForm from './NewThreadForm'
 import {
   getThreadList, getThreadDetail, createThread, createReply, toggleThreadMute,
-  toggleReaction, editThread, deleteThread, editReply, deleteReply,
+  toggleReaction, editThread, deleteThread, editReply, deleteReply, togglePinThread,
 } from '@/app/community/actions'
 
 type View = { mode: 'list' } | { mode: 'new' } | { mode: 'thread'; id: string }
@@ -14,11 +14,13 @@ type View = { mode: 'list' } | { mode: 'new' } | { mode: 'thread'; id: string }
 export default function CommunityBoard({
   productId,
   lessonId,
+  isAdmin,
   initialThreads,
   initialThreadId,
 }: {
   productId: string
   lessonId: string
+  isAdmin: boolean
   initialThreads: ThreadListItem[]
   initialThreadId: string | null
 }) {
@@ -145,6 +147,16 @@ export default function CommunityBoard({
     await Promise.all([refreshList(), openThread(view.id)])
   }
 
+  async function handleTogglePin(pinned: boolean) {
+    if (view.mode !== 'thread') return
+    const fd = new FormData()
+    fd.set('thread_id', view.id)
+    fd.set('pinned', String(pinned))
+    fd.set('lesson_id', lessonId)
+    await togglePinThread(fd)
+    await Promise.all([refreshList(), openThread(view.id)])
+  }
+
   if (view.mode === 'new') {
     return <NewThreadForm onSubmit={handleNewThread} onCancel={() => setView({ mode: 'list' })} />
   }
@@ -166,6 +178,7 @@ export default function CommunityBoard({
     return (
       <ThreadDetail
         thread={thread}
+        isAdmin={isAdmin}
         onBack={() => setView({ mode: 'list' })}
         onReply={handleReply}
         onToggleMute={handleToggleMute}
@@ -175,6 +188,7 @@ export default function CommunityBoard({
         onDeleteThread={handleDeleteThread}
         onEditReply={handleEditReply}
         onDeleteReply={handleDeleteReply}
+        onTogglePin={handleTogglePin}
       />
     )
   }

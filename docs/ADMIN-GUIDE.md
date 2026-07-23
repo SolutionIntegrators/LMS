@@ -190,6 +190,10 @@ window after purchase (default 6 months — set per product).
 - **Edit / delete:** the author of a thread or reply can edit or delete it at
   any time (deleting a thread also deletes its replies). Admins can always
   edit/delete anything via **Admin → Content**.
+- **Pinning:** as an admin, open any thread and click **📌 Pin thread** to keep
+  it at the top of the list (pinned threads always sort first). Click again
+  to unpin. Only admins see the pin control; everyone sees a 📌 badge on
+  pinned threads.
 
 ## SOP 13 — Student profile & avatars
 

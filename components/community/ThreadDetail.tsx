@@ -11,6 +11,7 @@ export interface ThreadDetailData {
   createdAt: string
   authorName: string
   isAuthor: boolean
+  isPinned: boolean
   isMuted: boolean
   reactions: ReactionSummary[]
   replies: Array<{ id: string; body: string; createdAt: string; authorName: string; isAuthor: boolean; reactions: ReactionSummary[] }>
@@ -67,6 +68,7 @@ function ReactionRow({
 
 export default function ThreadDetail({
   thread,
+  isAdmin,
   onBack,
   onReply,
   onToggleMute,
@@ -76,8 +78,10 @@ export default function ThreadDetail({
   onDeleteThread,
   onEditReply,
   onDeleteReply,
+  onTogglePin,
 }: {
   thread: ThreadDetailData
+  isAdmin: boolean
   onBack: () => void
   onReply: (body: string) => Promise<void>
   onToggleMute: (mute: boolean) => Promise<void>
@@ -87,10 +91,12 @@ export default function ThreadDetail({
   onDeleteThread: () => Promise<void>
   onEditReply: (replyId: string, body: string) => Promise<void>
   onDeleteReply: (replyId: string) => Promise<void>
+  onTogglePin: (pinned: boolean) => Promise<void>
 }) {
   const [replyBody, setReplyBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [muting, setMuting] = useState(false)
+  const [pinning, setPinning] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [editingThread, setEditingThread] = useState(false)
@@ -123,6 +129,15 @@ export default function ThreadDetail({
       await onToggleMute(!thread.isMuted)
     } finally {
       setMuting(false)
+    }
+  }
+
+  async function handlePin() {
+    setPinning(true)
+    try {
+      await onTogglePin(!thread.isPinned)
+    } finally {
+      setPinning(false)
     }
   }
 
@@ -169,20 +184,38 @@ export default function ThreadDetail({
         <button type="button" onClick={onBack} style={{ background: 'transparent', border: 'none', color: 'var(--si-burnt-orange)', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer', padding: 0 }}>
           ← Back to all threads
         </button>
-        <button
-          type="button"
-          onClick={handleMute}
-          disabled={muting}
-          title={thread.isMuted ? 'Unmute this thread' : 'Mute this thread'}
-          style={{
-            background: thread.isMuted ? 'var(--si-linen)' : 'transparent',
-            border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)',
-            padding: '0.4rem 0.875rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', fontWeight: 500,
-            color: 'var(--si-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
-          }}
-        >
-          {thread.isMuted ? '🔕 Muted' : '🔔 Notifications on'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.625rem' }}>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handlePin}
+              disabled={pinning}
+              title={thread.isPinned ? 'Unpin this thread' : 'Pin this thread to the top'}
+              style={{
+                background: thread.isPinned ? 'var(--si-linen)' : 'transparent',
+                border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)',
+                padding: '0.4rem 0.875rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', fontWeight: 500,
+                color: 'var(--si-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+              }}
+            >
+              {thread.isPinned ? '📌 Pinned' : '📌 Pin thread'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleMute}
+            disabled={muting}
+            title={thread.isMuted ? 'Unmute this thread' : 'Mute this thread'}
+            style={{
+              background: thread.isMuted ? 'var(--si-linen)' : 'transparent',
+              border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)',
+              padding: '0.4rem 0.875rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', fontWeight: 500,
+              color: 'var(--si-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+            }}
+          >
+            {thread.isMuted ? '🔕 Muted' : '🔔 Notifications on'}
+          </button>
+        </div>
       </div>
 
       <div className="card" style={{ padding: '1.5rem', marginBottom: '1rem' }}>
@@ -204,7 +237,10 @@ export default function ThreadDetail({
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-              <h2 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: '1.35rem', color: 'var(--si-dark-text)', marginBottom: '0.5rem' }}>{thread.title}</h2>
+              <h2 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: '1.35rem', color: 'var(--si-dark-text)', marginBottom: '0.5rem' }}>
+                {thread.isPinned && <span title="Pinned" style={{ marginRight: '0.5rem' }}>📌</span>}
+                {thread.title}
+              </h2>
               {thread.isAuthor && (
                 <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                   <button type="button" onClick={() => setEditingThread(true)} style={{ background: 'transparent', border: 'none', color: 'var(--si-muted)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', cursor: 'pointer' }}>Edit</button>

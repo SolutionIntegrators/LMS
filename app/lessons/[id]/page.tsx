@@ -172,6 +172,7 @@ export default async function LessonPage({
             <CommunityBoard
               productId={product.id}
               lessonId={lesson.id}
+              isAdmin={isAdminUser}
               initialThreads={initialThreads}
               initialThreadId={threadParam ?? null}
             />
