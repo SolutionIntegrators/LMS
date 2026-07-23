@@ -12,21 +12,25 @@ export async function POST(request: Request): Promise<Response> {
   if (!secret) return new Response('CLICKUP_WEBHOOK_SECRET not configured', { status: 503 })
   if (request.headers.get('x-webhook-secret') !== secret) return new Response('Unauthorized', { status: 401 })
 
+  const url = new URL(request.url)
   const rawBody = await request.text()
   let payload: any = {}
-  try { payload = JSON.parse(rawBody) } catch { return new Response('Bad payload', { status: 400 }) }
+  if (rawBody) { try { payload = JSON.parse(rawBody) } catch { /* the Automation action may send no body at all */ } }
 
   // Defensive parsing — a native ClickUp webhook sends a history-item diff
-  // (`history_items[0].after.status`), while an Automation "Send Webhook"
-  // action sends the task's current fields instead (`status.status`, or a
-  // plain `status` string). Accept whichever shape shows up.
-  const taskId: string | undefined = payload.task_id ?? payload.taskId ?? payload.id
+  // (`history_items[0].after.status`), an Automation "Send Webhook" action
+  // sends the task's current fields instead (`status.status`, or a plain
+  // `status` string) or nothing at all — in which case we rely on
+  // task_id/status attached as URL query parameters in the Automation config.
+  const taskId: string | undefined =
+    payload.task_id ?? payload.taskId ?? payload.id ?? url.searchParams.get('task_id') ?? undefined
   if (!taskId) return new Response('Missing task_id', { status: 400 })
 
   const newStatusRaw =
     payload.history_items?.[0]?.after?.status ??
     payload.status?.status ??
     payload.status ??
+    url.searchParams.get('status') ??
     null
   const newStatus = typeof newStatusRaw === 'string' ? newStatusRaw.toLowerCase().trim() : null
 
