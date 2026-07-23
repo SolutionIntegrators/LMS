@@ -9,7 +9,7 @@ export default async function AdminSupportPage() {
   // support_requests_admin_all policy grants full access via is_admin()).
   const { data } = await (supabase as any)
     .from('support_requests')
-    .select('id, subject, description, product_slug, internal_status, client_visible_status, resolution, clickup_task_id, created_at, updated_at, user_id')
+    .select('id, subject, description, product_slug, internal_status, client_visible_status, resolution, additional_info_needed, clickup_task_id, created_at, updated_at, user_id')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -43,6 +43,7 @@ export default async function AdminSupportPage() {
                 <th style={{ padding: '0.625rem' }}>Course</th>
                 <th style={{ padding: '0.625rem' }}>Internal status</th>
                 <th style={{ padding: '0.625rem' }}>Client sees</th>
+                <th style={{ padding: '0.625rem' }}>Additional info needed</th>
                 <th style={{ padding: '0.625rem' }}>ClickUp</th>
                 <th style={{ padding: '0.625rem' }}>Submitted</th>
               </tr>
@@ -58,6 +59,7 @@ export default async function AdminSupportPage() {
                   <td style={{ padding: '0.625rem', color: 'var(--si-muted)' }}>{r.product_slug || '—'}</td>
                   <td style={{ padding: '0.625rem', color: 'var(--si-muted)', textTransform: 'capitalize' }}>{r.internal_status || '—'}</td>
                   <td style={{ padding: '0.625rem', color: 'var(--si-muted)', textTransform: 'capitalize' }}>{r.client_visible_status || '—'}</td>
+                  <td style={{ padding: '0.625rem', color: r.additional_info_needed ? '#B4500F' : 'var(--si-muted)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.additional_info_needed || '—'}</td>
                   <td style={{ padding: '0.625rem' }}>
                     {r.clickup_task_id
                       ? <a href={`https://app.clickup.com/t/${r.clickup_task_id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--si-burnt-orange)' }}>Open ↗</a>

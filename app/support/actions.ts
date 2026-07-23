@@ -19,7 +19,7 @@ export async function getMyRequests() {
   const { supabase, user } = await requireUser()
   const { data, error } = await (supabase as any)
     .from('support_requests')
-    .select('id, subject, description, product_slug, client_visible_status, resolution, created_at, updated_at')
+    .select('id, subject, description, product_slug, client_visible_status, resolution, additional_info_needed, created_at, updated_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)

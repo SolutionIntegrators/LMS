@@ -1,16 +1,19 @@
 export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
-import { createClickUpTask, getClickUpResolution } from '@/lib/clickup'
+import { createClickUpTask } from '@/lib/clickup'
+import { syncSupportTicketFromClickUp } from '@/lib/support-sync'
 
 // Two best-effort backstops for support ticketing, run on a schedule like the
 // other /api/cron/* endpoints: GET ?key=CRON_SECRET
 //
 // 1. Retry ClickUp task creation for tickets whose submission-time call
 //    failed (clickup_task_id still null).
-// 2. Backfill the Resolution field for already-resolved tickets that still
-//    have none — covers a Resolution filled in on ClickUp shortly after the
-//    "resolved" webhook fired (the student already got their email either way).
+// 2. Re-poll every open (non-resolved) ticket's live status/Resolution/
+//    Additional Info Needed directly from ClickUp. This is the reliable path:
+//    a ClickUp Automation's "Send Webhook" action has no dependable way to
+//    attach a live status to its payload, so the webhook alone can miss
+//    transitions — this cron catches up on whatever it missed.
 export async function GET(request: Request): Promise<Response> {
   const key = new URL(request.url).searchParams.get('key')
   if (!process.env.CRON_SECRET || key !== process.env.CRON_SECRET) {
@@ -19,7 +22,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const db = createServiceSupabaseClient() as any
   let tasksCreated = 0
-  let resolutionsBackfilled = 0
+  let ticketsSynced = 0
 
   const { data: unsynced } = await db
     .from('support_requests')
@@ -47,20 +50,16 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  const { data: unresolved } = await db
+  const { data: open } = await db
     .from('support_requests')
-    .select('id, clickup_task_id')
-    .eq('client_visible_status', 'resolved')
-    .is('resolution', null)
+    .select('id, clickup_task_id, user_id, subject, resolution, client_visible_status, resolved_notified_at')
+    .neq('client_visible_status', 'resolved')
     .not('clickup_task_id', 'is', null)
 
-  for (const ticket of unresolved ?? []) {
-    const resolution = await getClickUpResolution(ticket.clickup_task_id)
-    if (resolution) {
-      await db.from('support_requests').update({ resolution }).eq('id', ticket.id)
-      resolutionsBackfilled += 1
-    }
+  for (const ticket of open ?? []) {
+    await syncSupportTicketFromClickUp(db, ticket)
+    ticketsSynced += 1
   }
 
-  return Response.json({ ok: true, tasksCreated, resolutionsBackfilled })
+  return Response.json({ ok: true, tasksCreated, ticketsSynced })
 }

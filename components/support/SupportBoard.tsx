@@ -11,6 +11,7 @@ export interface SupportRequestItem {
   product_slug: string | null
   client_visible_status: string | null
   resolution: string | null
+  additional_info_needed: string | null
   created_at: string
   updated_at: string
 }
@@ -80,6 +81,12 @@ export default function SupportBoard({
                 {r.product_slug && (
                   <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', color: 'var(--si-muted)', marginBottom: '0.5rem' }}>
                     Course: {r.product_slug}
+                  </div>
+                )}
+                {r.additional_info_needed && r.client_visible_status !== 'resolved' && (
+                  <div style={{ background: '#FDF1E7', border: '1.5px solid #E16B16', borderRadius: 'var(--si-radius-sm)', padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
+                    <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8125rem', fontWeight: 600, color: '#B4500F', margin: '0 0 0.25rem' }}>⚠ Additional info needed</p>
+                    <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: 'var(--si-dark-text)', whiteSpace: 'pre-wrap', margin: 0 }}>{r.additional_info_needed}</p>
                   </div>
                 )}
                 {r.resolution && (
