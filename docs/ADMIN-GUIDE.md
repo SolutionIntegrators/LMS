@@ -2,7 +2,10 @@
 
 The LMS lives at **https://goodies.solutionintegrators.us**. Sign in with an
 admin account, then use the **Admin** link in the top nav. Admin sections:
-**Content · Users · Affiliates · Activity Logs · Settings**.
+**Content · People · Support Requests · Activity Logs · Settings**. People
+merges what used to be separate Users and Affiliates pages into one page with
+two tabs (Students / Affiliates) — same data and actions as before, just one
+nav item.
 
 Affiliate program specifics live in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**;
 email setup in **[EMAIL.md](EMAIL.md)**.
@@ -59,11 +62,14 @@ student view (orange banner), works on drafts, doesn't pollute analytics.
 
 ## SOP 4 — Add a user / manage access
 
-**Admin → Users**:
+**Admin → People → Students tab**:
 - **Add a user:** email + name + optional product → **Add + send invite**
   (creates the account, sends the branded invite, grants the product).
-- **Grant more products:** the "+ Grant…" dropdown in their row. **Revoke:** ✕.
-- **Name / Tags:** inline edit + Save.
+- **Quick find:** search by name/email to narrow the (compact) table.
+- Click a row to open that student's detail panel — **name**, **role**
+  (User/Admin — you can't change your own), **tags**, **granted programs**
+  (grant/revoke), account dates, and **Remove user…** (deletes their account
+  entirely; can't be undone).
 - Users can also self-serve a magic-link login, then you grant products.
 
 ## SOP 5 — Tags (gating + auto-grant)
@@ -134,8 +140,8 @@ portal account, no grant — and your Zapier/Kit automation handles delivery.
 ## SOP 10 — Affiliates & revenue-share
 
 Full detail in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**. In short:
-- **Admin → Affiliates:** add partners, per-product tracking links, see clicks +
-  commission owed. Sales auto-attribute (referred buyer buys the linked product
+- **Admin → People → Affiliates tab:** add partners, per-product tracking links,
+  see clicks + commission owed. Sales auto-attribute (referred buyer buys the linked product
   → login) and write payouts to the Backoffice hub.
 - **"Become an affiliate"** nav link → your application form.
 - **Self-service link requests** via the partner's Airtable interface.

@@ -30,7 +30,7 @@ Also add the product's exact title as an option in the Airtable **Link Requests 
 
 ## 2. Add an affiliate manually + give them links
 
-1. **Admin → Affiliates**
+1. **Admin → People → Affiliates tab**
 2. **Add Affiliate**: Name, Email (needed for their emails + payout matching), Commission %
 3. In that affiliate's card, use **"+ Add link"**: pick the Product, paste the Destination URL, (optional) custom code → **Add link**
 4. They're emailed their link automatically, and it appears in their Airtable **Affiliate Links** list.

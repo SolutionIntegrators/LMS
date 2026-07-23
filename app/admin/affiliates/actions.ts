@@ -31,7 +31,7 @@ export async function createAffiliate(formData: FormData) {
 
   const { error } = await (db as any).from('affiliates').insert({ name, email, commission_rate })
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/affiliates')
+  revalidatePath('/admin/people')
 }
 
 export async function deleteAffiliate(formData: FormData) {
@@ -39,7 +39,7 @@ export async function deleteAffiliate(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await (db as any).from('affiliates').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/affiliates')
+  revalidatePath('/admin/people')
 }
 
 // ── Links (per product) ─────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ export async function createAffiliateLink(formData: FormData) {
     await upsertAffiliateLink({ partnerEmail: aff.email, product: productTitle || null, code, url: link })
     await sendAffiliateWelcomeEmail({ to: aff.email, name: aff.name || null, link })
   }
-  revalidatePath('/admin/affiliates')
+  revalidatePath('/admin/people')
 }
 
 export async function toggleLink(formData: FormData) {
@@ -105,7 +105,7 @@ export async function toggleLink(formData: FormData) {
   const is_active = formData.get('is_active') === 'true'
   const { error } = await (db as any).from('affiliate_links').update({ is_active }).eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/affiliates')
+  revalidatePath('/admin/people')
 }
 
 export async function deleteLink(formData: FormData) {
@@ -113,5 +113,5 @@ export async function deleteLink(formData: FormData) {
   const id = formData.get('id') as string
   const { error } = await (db as any).from('affiliate_links').delete().eq('id', id)
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/affiliates')
+  revalidatePath('/admin/people')
 }
