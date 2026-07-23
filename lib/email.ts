@@ -131,6 +131,25 @@ export async function sendCommunityDigestEmail(opts: {
   await sendEmail(opts.to, `This week in ${opts.productTitle}`, html)
 }
 
+// Sent once, guarded by support_requests.resolved_notified_at, when a support
+// ticket's client_visible_status flips to "resolved".
+export async function sendSupportResolvedEmail(opts: {
+  to: string
+  fullName?: string | null
+  subject: string
+  resolution: string | null
+}): Promise<void> {
+  const hi = opts.fullName ? `Hi ${opts.fullName},` : 'Hi there,'
+  const html = shell(`
+    <p style="margin:0 0 14px;">${hi}</p>
+    <p style="margin:0 0 14px;">Your support request <strong>"${opts.subject}"</strong> has been resolved.</p>
+    ${opts.resolution
+      ? `<p style="margin:0 0 14px;">${opts.resolution.replace(/\n/g, '<br/>')}</p>`
+      : `<p style="margin:0 0 14px;">If you have any follow-up questions, just reply to this email.</p>`}
+  `)
+  await sendEmail(opts.to, `Your support request has been resolved: ${opts.subject}`, html)
+}
+
 // Sent to an affiliate/partner when their tracking link is created.
 export async function sendAffiliateWelcomeEmail(opts: {
   to: string
