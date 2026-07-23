@@ -82,9 +82,9 @@ export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
         <div className="nav-links-desktop" style={{ alignItems: 'center', gap: '1.25rem' }}>
           <Link href="/support" style={linkStyle}>Support</Link>
           {branding.links.affiliate && (
-            <a href={branding.links.affiliate} target="_blank" rel="noopener noreferrer" style={highlightLinkStyle}>
+            <Link href="/affiliate-apply" style={highlightLinkStyle}>
               Become an affiliate
-            </a>
+            </Link>
           )}
           {role === 'admin' && (
             <Link href="/admin/people" style={highlightLinkStyle}>Admin</Link>
@@ -141,9 +141,9 @@ export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
           </span>
           <Link href="/support" style={{ ...linkStyle, padding: '0.625rem 0' }} onClick={() => setMenuOpen(false)}>Support</Link>
           {branding.links.affiliate && (
-            <a href={branding.links.affiliate} target="_blank" rel="noopener noreferrer" style={{ ...highlightLinkStyle, padding: '0.625rem 0' }}>
+            <Link href="/affiliate-apply" style={{ ...highlightLinkStyle, padding: '0.625rem 0' }} onClick={() => setMenuOpen(false)}>
               Become an affiliate
-            </a>
+            </Link>
           )}
           {role === 'admin' && (
             <Link href="/admin/people" style={{ ...highlightLinkStyle, padding: '0.625rem 0' }} onClick={() => setMenuOpen(false)}>Admin</Link>

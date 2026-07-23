@@ -41,9 +41,10 @@ Repeat "+ Add link" for each product they promote.
 
 ## 3. "Become an affiliate" (new applicants)
 
-- A **"Become an affiliate"** link sits in the portal top nav (next to Support), pointing to your application form.
-- A customer applies → they land in your **Affiliate & Referral Partners** table as a new applicant → you review/approve as usual.
-- Once they exist as a partner, they can request links (§4).
+- A **"Become an affiliate"** link sits in the portal top nav (next to Support), opening an in-app form at `/affiliate-apply` — no external Airtable form involved. A logged-in student fills in Business Name, PayPal Email, which offer(s) they want a link for, and agrees to the terms; Name/Email are pulled from their account.
+- Submitting calls the Airtable API **directly from the LMS** (`createPartnerApplication()` in `lib/airtable.ts`) — this needs **no Airtable-side automation or webhook**, since the LMS is the one initiating the request. It creates a row in **Affiliate & Referral Partners** with **Partner Status = "For Review"**; if that email already has a partner row (active or a prior application), it politely tells them so instead of creating a duplicate.
+- You review "For Review" applicants in Airtable same as before, then add them as an affiliate in **Admin → People → Affiliates** when approved (§2) — that step now also auto-creates the Airtable partner if one is somehow still missing, and offers autocomplete from existing LMS users so you don't have to retype their name/email.
+- The nav link is gated on `branding.links.affiliate` being set (any truthy value works as the on/off switch) — its URL value is no longer used for navigation.
 
 ---
 

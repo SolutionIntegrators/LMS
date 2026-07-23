@@ -219,6 +219,13 @@ export async function updateSaleAttribution(transactionRef: string, attr: {
   }
 }
 
+async function findPartnerIdByEmail(email: string): Promise<string | null> {
+  if (!token() || !email) return null
+  const qs = new URLSearchParams({ filterByFormula: `LOWER({Email Address})='${esc(email.toLowerCase())}'`, maxRecords: '1' })
+  const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
+  return found.records?.[0]?.id ?? null
+}
+
 // Get-or-create a partner record in the Backoffice Hub, matched by email. An
 // affiliate created directly in the LMS admin (rather than via the Airtable
 // application flow in AFFILIATE-SOP.md §3) has no partner row waiting for it,
@@ -228,9 +235,7 @@ export async function updateSaleAttribution(transactionRef: string, attr: {
 async function ensurePartnerRecord(opts: { name?: string | null; email: string }): Promise<string | null> {
   if (!token() || !opts.email) return null
   try {
-    const qs = new URLSearchParams({ filterByFormula: `LOWER({Email Address})='${esc(opts.email.toLowerCase())}'`, maxRecords: '1' })
-    const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
-    const existingId = found.records?.[0]?.id
+    const existingId = await findPartnerIdByEmail(opts.email)
     if (existingId) return existingId
 
     const fullName = (opts.name || '').trim() || opts.email
@@ -252,6 +257,47 @@ async function ensurePartnerRecord(opts: { name?: string | null; email: string }
   } catch (err) {
     console.error('ensurePartnerRecord failed:', err instanceof Error ? err.message : err)
     return null
+  }
+}
+
+// Creates a "For Review" partner application row in the Backoffice Hub for
+// the in-app "Become an affiliate" form — the LMS calls Airtable directly, so
+// no Airtable-side automation/webhook is needed for this. Returns
+// 'already_exists' rather than creating a duplicate if this email already
+// has a partner row (active or a prior application). Best-effort: 'error' on
+// any failure, but never throws.
+export async function createPartnerApplication(opts: {
+  fullName: string
+  email: string
+  businessName?: string | null
+  paypalEmail?: string | null
+  productNames: string[]
+}): Promise<'created' | 'already_exists' | 'error'> {
+  if (!token()) return 'error'
+  try {
+    const existingId = await findPartnerIdByEmail(opts.email)
+    if (existingId) return 'already_exists'
+
+    const fullName = opts.fullName.trim() || opts.email
+    const firstName = fullName.split(/\s+/)[0]
+    const fields: Json = {
+      'First and Last Name': fullName,
+      'First Name': firstName,
+      'Email Address': opts.email,
+      'Partner Status': 'For Review',
+    }
+    if (opts.businessName) fields['Business Name'] = opts.businessName
+    if (opts.paypalEmail) fields['Paypal Email Address'] = opts.paypalEmail
+    if (opts.productNames.length) fields["Select Product(s) You'd Like Links for"] = opts.productNames
+
+    await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}`, {
+      method: 'POST',
+      body: JSON.stringify({ fields, typecast: true }),
+    })
+    return 'created'
+  } catch (err) {
+    console.error('createPartnerApplication failed:', err instanceof Error ? err.message : err)
+    return 'error'
   }
 }
 
