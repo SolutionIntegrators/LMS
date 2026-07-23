@@ -1,7 +1,16 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { updateProduct } from '../actions'
+import ThumbnailUpload from '@/components/admin/ThumbnailUpload'
+
+// Catches the single most common thumbnail mistake: pasting a Google
+// Drive/Dropbox "share" page link (which looks like a URL but isn't a
+// direct image link, so it silently fails to render) instead of uploading
+// the file or a direct image URL.
+function looksLikeSharePageLink(url: string): boolean {
+  return /drive\.google\.com\/file|dropbox\.com\/s\//.test(url)
+}
 
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)',
@@ -32,6 +41,7 @@ async function saveAction(_prev: State, formData: FormData): Promise<State> {
 export default function ProductSettingsForm({ product, kitTags = [], allProducts = [] }: { product: any; kitTags?: { id: number; name: string }[]; allProducts?: { id: string; title: string }[] }) {
   const otherProducts = allProducts.filter((p) => p.id !== product.id)
   const [state, formAction, pending] = useActionState(saveAction, null)
+  const [thumbnailUrl, setThumbnailUrl] = useState(product.thumbnail_url ?? '')
 
   return (
     <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
@@ -173,7 +183,7 @@ export default function ProductSettingsForm({ product, kitTags = [], allProducts
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.75rem', maxWidth: 480, alignItems: 'end' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Thumbnail URL (optional)</span>
-          <input name="thumbnail_url" defaultValue={product.thumbnail_url ?? ''} placeholder="https://…/image.jpg" style={inputStyle} />
+          <input name="thumbnail_url" value={thumbnailUrl} onChange={(e) => setThumbnailUrl(e.target.value)} placeholder="https://…/image.jpg" style={inputStyle} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Or color</span>
@@ -181,6 +191,25 @@ export default function ProductSettingsForm({ product, kitTags = [], allProducts
             style={{ height: 38, width: 60, padding: '0.1rem 0.25rem', border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', cursor: 'pointer', background: 'var(--si-white)' }} />
         </label>
       </div>
+
+      {looksLikeSharePageLink(thumbnailUrl) && (
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: '#8B2A1A', maxWidth: 480, margin: 0 }}>
+          ⚠ That looks like a Google Drive/Dropbox share page, not a direct image
+          link — it won&apos;t render. Upload the image below instead.
+        </p>
+      )}
+
+      <div style={{ maxWidth: 480 }}>
+        <ThumbnailUpload productId={product.id} onUploaded={setThumbnailUrl} />
+      </div>
+
+      {thumbnailUrl && !looksLikeSharePageLink(thumbnailUrl) && (
+        <div style={{ maxWidth: 200 }}>
+          <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)', margin: '0 0 0.375rem' }}>Preview</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbnailUrl} alt="" style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 'var(--si-radius-sm)', border: '1px solid var(--si-border)' }} />
+        </div>
+      )}
 
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 480 }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>

@@ -82,3 +82,16 @@ body {
   box-shadow: var(--si-shadow-card);
   padding: 2rem;
 }
+
+/* Nav — desktop links row vs. mobile hamburger. Default (mobile-first): show
+   the mobile controls, hide the desktop row; flip at the tablet breakpoint. */
+.nav-links-desktop { display: none; }
+.nav-mobile-controls { display: flex; }
+@media (min-width: 860px) {
+  .nav-links-desktop { display: flex; }
+  .nav-mobile-controls { display: none; }
+}
+
+/* Prevent the whole page from acquiring horizontal scroll on narrow screens
+   (long unbroken strings — URLs, emails — are the usual culprit). */
+html, body { overflow-x: hidden; max-width: 100%; }
