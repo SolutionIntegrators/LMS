@@ -50,25 +50,33 @@ Repeat "+ Add link" for each product they promote.
 
 ## 4. Self-service link requests (partner interface)
 
-Approved partners request their own links from inside their Airtable interface. **One-time setup:**
+Approved partners request their own links from inside their Airtable interface.
 
-**A) Interface element** (partner detail page):
+**Interface element** (partner detail page), **one-time setup**:
 1. Open the partner interface → edit the partner's detail page
 2. Add a **linked-records list** (or button) bound to **Link Requests**, with **"Allow users to create records"** on
-3. Show the **Product** field (single-select) + **Created Link**
+3. Show the **Product** field (multi-select) + **Created Link**
+4. Change **Created Link** from a **URL** field to a **Long text** field — a
+   request can ask for more than one product, and each gets its own link, so
+   a single URL field can't hold them all.
 
-**B) Automation** (Airtable → Automations):
-1. Trigger: **When a record is created** in **Link Requests**
-2. Action: **Send webhook / POST** to:
-   `https://goodies.solutionintegrators.us/api/affiliate/create-link?key=<AFFILIATE_LINK_SECRET>`
-   Body (JSON):
-   - `partner_email` → the Partner's Email Address
-   - `partner_name` → the Partner's name
-   - `product` → the selected **Product** (or `products` for multiple)
-3. Action: **Update record** → set **Created Link** = the webhook response's `results[0].link`, **Status** = `Created`
+**How it's actually synced:** this account's Airtable plan doesn't have a
+webhook or scripting action available in Automations, so there's no
+Airtable-side automation to set up. Instead, `GET
+/api/cron/sync-link-requests?key=CRON_SECRET` polls the **Link Requests**
+table directly (every 15–30 min, same as the other cron endpoints below) for
+rows with **Status = "Requested"**, creates the tracking link(s), and writes
+back:
+- **Created Link** → one line per product, `Product: https://.../r/code`
+  (or `Product: FAILED — <reason>` if that one product wasn't eligible)
+- **Status** → `Created` if every requested product got a link, `Error` if
+  any failed (check **Created Link** for which one and why)
 
-Then: partner picks a product → gets a working tracked link in seconds, no work from you.
-*(The `AFFILIATE_LINK_SECRET` value is in the project's `.env.local` / Cloudflare env.)*
+Then: partner picks product(s) → within the next poll, gets working tracked
+link(s), no work from you. The same underlying logic is also reachable as a
+one-shot API (`POST /api/affiliate/create-link`, auth via
+`AFFILIATE_LINK_SECRET`) if you ever want to trigger it from Zapier/Make or
+another external automation platform instead.
 
 ---
 
