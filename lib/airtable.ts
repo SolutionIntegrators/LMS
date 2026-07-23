@@ -13,6 +13,7 @@ const PARTNERS_TABLE = process.env.AIRTABLE_PARTNERS_TABLE || 'tblbzTvY0pRSt6Wxv
 const PARTNERS_PAYOUT_TABLE = process.env.AIRTABLE_PAYOUT_TABLE || 'tblWej0WLbMqNJdrE'
 const LINKS_TABLE = process.env.AIRTABLE_LINKS_TABLE || 'tblCBzZBVXlLjJp6z'
 const ABANDONED_TABLE = process.env.AIRTABLE_ABANDONED_TABLE || 'tblE2EhqFBl671zpE'
+const LINK_REQUESTS_TABLE = process.env.AIRTABLE_LINK_REQUESTS_TABLE || 'tblQdAZGqQz2GRSCt'
 // "Products" (digital products) table in the Backoffice base, linked from payouts.
 const PARTNERS_PRODUCTS_TABLE = process.env.AIRTABLE_PARTNERS_PRODUCTS_TABLE || 'tbl26UczLHCUMb2zO'
 // Engagement + email-issue tables in the sales hub (BASE_ID).
@@ -466,5 +467,58 @@ export async function pushReferralPayout(opts: {
     })
   } catch (err) {
     console.error('pushReferralPayout failed:', err instanceof Error ? err.message : err)
+  }
+}
+
+// ── Self-service link requests (polled, not pushed via Airtable Automation —
+// this account's Airtable plan has no webhook/script action available) ──────
+
+export interface PendingLinkRequest {
+  id: string
+  productNames: string[]
+  partnerRecordId: string | null
+}
+
+// Link Requests rows still awaiting processing (Status = "Requested"), each
+// with its linked Partner record id and the requested product name(s). Best-
+// effort: returns [] on any failure so a bad poll never throws the cron.
+export async function listPendingLinkRequests(): Promise<PendingLinkRequest[]> {
+  if (!token()) return []
+  try {
+    const qs = new URLSearchParams({ filterByFormula: `{Status}='Requested'` })
+    const data = await at(`${PARTNERS_BASE}/${LINK_REQUESTS_TABLE}?${qs.toString()}`)
+    return (data.records ?? []).map((r: any) => ({
+      id: r.id,
+      productNames: r.fields?.['Product'] ?? [],
+      partnerRecordId: r.fields?.['Partner']?.[0] ?? null,
+    }))
+  } catch (err) {
+    console.error('listPendingLinkRequests failed:', err instanceof Error ? err.message : err)
+    return []
+  }
+}
+
+// Best-effort: returns null on any failure.
+export async function getPartnerContact(partnerRecordId: string): Promise<{ email: string | null; name: string | null } | null> {
+  if (!token() || !partnerRecordId) return null
+  try {
+    const rec = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}/${partnerRecordId}`)
+    return { email: rec.fields?.['Email Address'] ?? null, name: rec.fields?.['First and Last Name'] ?? null }
+  } catch (err) {
+    console.error('getPartnerContact failed:', err instanceof Error ? err.message : err)
+    return null
+  }
+}
+
+// Writes the outcome back onto the triggering Link Requests row. Best-effort.
+export async function updateLinkRequestResult(recordId: string, opts: { createdLinkText: string; status: 'Created' | 'Error' }): Promise<void> {
+  if (!token()) return
+  try {
+    await at(`${PARTNERS_BASE}/${LINK_REQUESTS_TABLE}/${recordId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fields: { 'Created Link': opts.createdLinkText, Status: opts.status } }),
+    })
+  } catch (err) {
+    console.error('updateLinkRequestResult failed:', err instanceof Error ? err.message : err)
   }
 }
