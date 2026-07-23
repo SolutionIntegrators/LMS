@@ -86,6 +86,13 @@ export async function processPurchase(opts: PurchaseInput): Promise<PurchaseResu
     } as any, { onConflict: 'user_id,product_id', ignoreDuplicates: true }).select('id')
     if (accessError) return { status: 500, body: { error: `Failed to grant access: ${accessError.message}` } }
     newlyGranted = Array.isArray(grantedRows) && grantedRows.length > 0
+
+    // Default-subscribe the buyer to this product's community (if it has one).
+    // ignoreDuplicates so a repeat grant never clobbers an explicit unsubscribe.
+    await (db as any).from('community_subscriptions').upsert(
+      { user_id: userId, product_id: product.id, subscribed: true },
+      { onConflict: 'user_id,product_id', ignoreDuplicates: true }
+    )
   }
 
   // Tags (product auto-grant + explicit).

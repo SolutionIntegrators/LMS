@@ -7,16 +7,18 @@ import LessonPlayer from '@/components/LessonPlayer'
 import LessonBlocks from '@/components/LessonBlocks'
 import { parseBlocks } from '@/lib/blocks'
 import Link from 'next/link'
+import CommunityBoard from '@/components/community/CommunityBoard'
+import { getThreadList } from '@/app/community/actions'
 
 export default async function LessonPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ preview?: string }>
+  searchParams: Promise<{ preview?: string; thread?: string }>
 }) {
   const { id } = await params
-  const { preview: previewParam } = await searchParams
+  const { preview: previewParam, thread: threadParam } = await searchParams
   const supabase = await createServerSupabaseClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -39,7 +41,7 @@ export default async function LessonPage({
       id, title, description, content_type, content_url, sort_order, required_tag, is_preview, is_published, content_blocks,
       modules (
         id, title, product_id, required_tag,
-        products (id, title, slug, is_active)
+        products (id, title, slug, is_active, community_access_months)
       )
     `)
     .eq('id', id)
@@ -71,16 +73,27 @@ export default async function LessonPage({
       }
     }
 
-    // Purchase check — free-preview lessons bypass only this.
-    if (!lessonData.is_preview) {
+    // Purchase check — free-preview lessons bypass only this. Community boards
+    // never do: they always require live, non-expired access (no free preview).
+    const isCommunity = lessonData.content_type === 'community'
+    if (!lessonData.is_preview || isCommunity) {
       const { data: access } = await supabase
         .from('user_product_access')
-        .select('id')
+        .select('id, granted_at')
         .eq('user_id', user.id)
         .eq('product_id', product?.id ?? '')
         .single()
 
       if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
+
+      if (isCommunity) {
+        const months = product?.community_access_months ?? 6
+        const expiresAt = new Date((access as any).granted_at)
+        expiresAt.setMonth(expiresAt.getMonth() + months)
+        if (expiresAt.getTime() <= Date.now()) {
+          return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>Your access to this community has expired.</div>
+        }
+      }
     }
   }
 
@@ -116,6 +129,11 @@ export default async function LessonPage({
   const prevLesson = currentIndex > 0 ? siblingLessons![currentIndex - 1] : null
   const nextLesson = currentIndex < (siblingLessons?.length ?? 0) - 1 ? siblingLessons![currentIndex + 1] : null
 
+  // Community boards render their own thread list/detail UI instead of the
+  // usual media player + mark-complete flow (a discussion has no "complete" state).
+  const isCommunity = lessonData.content_type === 'community'
+  const initialThreads = isCommunity && product?.id ? await getThreadList(product.id).catch(() => []) : []
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
       {preview && (
@@ -149,20 +167,29 @@ export default async function LessonPage({
             </p>
           )}
 
-          <LessonPlayer
-            lessonId={lesson.id}
-            contentType={lesson.content_type}
-            contentUrl={lesson.content_url}
-            userId={user.id}
-            isCompleted={!!completion}
-            productId={product?.id}
-            moduleId={mod?.id}
-            description={lesson.description}
-            hasBlocks={parseBlocks((lesson as any).content_blocks).length > 0}
-            previewMode={preview}
-          >
-            <LessonBlocks blocks={parseBlocks((lesson as any).content_blocks)} />
-          </LessonPlayer>
+          {isCommunity ? (
+            <CommunityBoard
+              productId={product.id}
+              lessonId={lesson.id}
+              initialThreads={initialThreads}
+              initialThreadId={threadParam ?? null}
+            />
+          ) : (
+            <LessonPlayer
+              lessonId={lesson.id}
+              contentType={lesson.content_type}
+              contentUrl={lesson.content_url}
+              userId={user.id}
+              isCompleted={!!completion}
+              productId={product?.id}
+              moduleId={mod?.id}
+              description={lesson.description}
+              hasBlocks={parseBlocks((lesson as any).content_blocks).length > 0}
+              previewMode={preview}
+            >
+              <LessonBlocks blocks={parseBlocks((lesson as any).content_blocks)} />
+            </LessonPlayer>
+          )}
         </div>
 
         {/* Prev / Next navigation */}

@@ -80,10 +80,14 @@ export async function updateProduct(formData: FormData) {
   const upsell_cta_mode = (formData.get('upsell_cta_mode') as string) === 'lightbox' ? 'lightbox' : 'new_tab'
   const upsell_cta_label = ((formData.get('upsell_cta_label') as string) || '').trim() || 'Unlock →'
 
+  const monthsRaw = ((formData.get('community_access_months') as string) || '').trim()
+  const community_access_months = monthsRaw && !isNaN(Number(monthsRaw)) && Number(monthsRaw) > 0 ? Math.floor(Number(monthsRaw)) : 6
+
   const update: Record<string, unknown> = {
     title, description, is_active, thumbnail_url, thumbnail_color, auto_grant_tags, category,
     announcement_active, announcement_text, kit_tag_id, sales_page_url,
     recommended_product_ids, recommend_same_category, checkout_url, upsell_cta_mode, upsell_cta_label,
+    community_access_months,
   }
   if (slugChanged) update.slug = slug
 
