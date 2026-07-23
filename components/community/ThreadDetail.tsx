@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { mdBlock } from '@/lib/markdown'
 import { REACTION_EMOJIS, type ReactionSummary } from '@/lib/reactions'
+import MarkdownEditor from './MarkdownEditor'
 
 export interface ThreadDetailData {
   id: string
@@ -28,8 +29,6 @@ const inputStyle: React.CSSProperties = {
   fontFamily: 'DM Sans, sans-serif',
   resize: 'vertical' as const,
 }
-
-const formatHint = 'Supports **bold**, *italic*, [links](https://…), and "- " for bullets.'
 
 function ReactionRow({
   reactions,
@@ -222,8 +221,7 @@ export default function ThreadDetail({
         {editingThread ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
             <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} style={inputStyle} />
-            <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={5} style={inputStyle} />
-            <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>{formatHint}</span>
+            <MarkdownEditor value={editBody} onChange={setEditBody} rows={5} />
             <div style={{ display: 'flex', gap: '0.625rem' }}>
               <button type="button" className="btn-primary" disabled={savingThread} onClick={handleSaveThread}>
                 {savingThread ? 'Saving…' : 'Save'}
@@ -264,8 +262,7 @@ export default function ThreadDetail({
             <div key={r.id} className="card" style={{ padding: '1rem 1.25rem' }}>
               {editingReplyId === r.id ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <textarea value={editReplyBody} onChange={(e) => setEditReplyBody(e.target.value)} rows={3} style={inputStyle} />
-                  <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>{formatHint}</span>
+                  <MarkdownEditor value={editReplyBody} onChange={setEditReplyBody} rows={3} />
                   <div style={{ display: 'flex', gap: '0.625rem' }}>
                     <button type="button" className="btn-primary" disabled={savingReply} onClick={() => handleSaveReply(r.id)}>
                       {savingReply ? 'Saving…' : 'Save'}
@@ -300,8 +297,7 @@ export default function ThreadDetail({
       )}
 
       <form onSubmit={handleReply} className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={3} placeholder="Write a reply…" required style={inputStyle} />
-        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>{formatHint}</span>
+        <MarkdownEditor value={replyBody} onChange={setReplyBody} placeholder="Write a reply…" rows={3} />
         {error && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: '#8B2A1A' }}>{error}</span>}
         <div>
           <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? 'Posting…' : 'Reply'}</button>

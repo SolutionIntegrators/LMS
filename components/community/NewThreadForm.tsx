@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import MarkdownEditor from './MarkdownEditor'
 
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)',
@@ -48,10 +49,7 @@ export default function NewThreadForm({
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Details</span>
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} required style={{ ...inputStyle, resize: 'vertical' }} />
-        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
-          Supports **bold**, *italic*, [links](https://…), and &quot;- &quot; for bullets.
-        </span>
+        <MarkdownEditor value={body} onChange={setBody} placeholder="Ask a question, share a link…" rows={5} />
       </label>
       {error && <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', color: '#8B2A1A' }}>{error}</span>}
       <div style={{ display: 'flex', gap: '0.75rem' }}>
