@@ -23,9 +23,14 @@ export default async function SupportPage() {
         avatarUrl={profile?.avatar_url ?? null}
       />
       <main style={{ maxWidth: 720, margin: '0 auto', padding: '3rem 1.5rem' }}>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: '2rem', color: 'var(--si-denim-blue)', marginBottom: '2rem' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontWeight: 400, fontSize: '2rem', color: 'var(--si-denim-blue)', marginBottom: '0.75rem' }}>
           Support
         </h1>
+        <p style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.95rem', color: 'var(--si-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>
+          Submit a Goodies Support Request here! You can drop a Loom video as well.
+          <br />
+          Keep an eye out on a response from <a href="mailto:connect@solutionintegrators.us" style={{ color: 'var(--si-denim-blue)' }}>connect@solutionintegrators.us</a>.
+        </p>
         <SupportBoard initialRequests={requests} products={products} />
       </main>
     </div>
