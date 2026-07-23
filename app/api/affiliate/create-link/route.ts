@@ -2,6 +2,7 @@ export const runtime = 'edge'
 
 import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { upsertAffiliateLink } from '@/lib/airtable'
+import { branding } from '@/lib/branding'
 
 // Self-service affiliate link creation, called by an Airtable automation when a
 // partner requests a link. Auth: AFFILIATE_LINK_SECRET via ?key= or x-api-key.
@@ -73,7 +74,7 @@ export async function POST(request: Request): Promise<Response> {
     // Idempotent: reuse an existing link for this partner + product.
     const { data: existing } = await (db as any).from('affiliate_links')
       .select('code').eq('affiliate_id', affiliate.id).eq('product_id', product.id).maybeSingle()
-    if (existing) return { product: product.title, code: existing.code, link: `${url.origin}/r/${existing.code}`, existed: true }
+    if (existing) return { product: product.title, code: existing.code, link: `${branding.siteUrl}/r/${existing.code}`, existed: true }
 
     let base = toCode(`${affiliate.name}-${product.slug}`) || 'link'
     const { data: taken } = await (db as any).from('affiliate_links').select('code').like('code', `${base}%`)
@@ -85,8 +86,8 @@ export async function POST(request: Request): Promise<Response> {
       .insert({ affiliate_id: affiliate.id, product_id: product.id, code, destination_url: product.sales_page_url.trim() })
     if (linkErr) return { product: product.title, error: linkErr.message }
 
-    const link = `${url.origin}/r/${code}`
-    await upsertAffiliateLink({ partnerEmail: email, product: product.title, code, url: link })
+    const link = `${branding.siteUrl}/r/${code}`
+    await upsertAffiliateLink({ partnerEmail: email, partnerName: affiliate.name || null, product: product.title, code, url: link })
     return { product: product.title, code, link }
   }
 

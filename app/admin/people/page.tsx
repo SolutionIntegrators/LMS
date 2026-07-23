@@ -1,12 +1,12 @@
 export const runtime = 'edge'
 
-import { headers } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { branding } from '@/lib/branding'
 import PeopleTabs from '@/components/admin/people/PeopleTabs'
 
 export default async function AdminPeoplePage() {
   const supabase = await createServerSupabaseClient()
-  const base = `https://${(await headers()).get('host') ?? 'goodies.solutionintegrators.us'}`
+  const base = branding.siteUrl
 
   const [
     { data: profilesRaw },

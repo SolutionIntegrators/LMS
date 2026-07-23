@@ -15,6 +15,12 @@ export const branding = {
   // Browser tab title + meta description
   siteTitle: 'Solution Integrators Portal',
   siteDescription: 'Your learning portal for Solution Integrators programs',
+  // Canonical production URL (no trailing slash). Used anywhere a link needs
+  // to be stable regardless of which host the request came in on — e.g.
+  // affiliate tracking links, which must never bake in a Cloudflare Pages
+  // preview domain (*.pages.dev) just because that's what an admin happened
+  // to be browsing when they created the link.
+  siteUrl: 'https://goodies.solutionintegrators.us',
 
   // ── Assets (files live in /public) ──────────────────────────────────────
   logo: {

@@ -33,7 +33,7 @@ Also add the product's exact title as an option in the Airtable **Link Requests 
 1. **Admin → People → Affiliates tab**
 2. **Add Affiliate**: Name, Email (needed for their emails + payout matching), Commission %
 3. In that affiliate's card, use **"+ Add link"**: pick the Product, paste the Destination URL, (optional) custom code → **Add link**
-4. They're emailed their link automatically, and it appears in their Airtable **Affiliate Links** list.
+4. They're emailed their link automatically, and it appears in their Airtable **Affiliate Links** list. If they don't already have a **Affiliate & Referral Partners** row (e.g. added straight here instead of via §3's application flow), one is created automatically at this step — Active status, Affiliate type — so their links are never orphaned in Airtable with no partner attached.
 
 Repeat "+ Add link" for each product they promote.
 
