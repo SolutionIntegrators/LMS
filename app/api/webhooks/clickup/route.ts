@@ -28,7 +28,7 @@ export async function POST(request: Request): Promise<Response> {
   const { data: ticket } = await db.from('support_requests').select('*').eq('clickup_task_id', taskId).maybeSingle()
   if (!ticket) return Response.json({ ok: true, note: 'No matching ticket for this task' })
 
-  await syncSupportTicketFromClickUp(db, ticket)
+  await syncSupportTicketFromClickUp(db, ticket, url.origin)
 
   return Response.json({ ok: true })
 }
