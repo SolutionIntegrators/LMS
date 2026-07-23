@@ -92,7 +92,7 @@ export default async function AdminLogsPage({
                   {new Date(log.created_at).toLocaleString()}
                 </td>
                 <td style={{ padding: '0.625rem 0.875rem', color: 'var(--si-dark-text)' }}>
-                  {(log.profiles as any)?.email ?? (log.user_id ? log.user_id.slice(0, 8) + '…' : 'system')}
+                  {emailById.get(log.user_id) ?? (log.user_id ? log.user_id.slice(0, 8) + '…' : 'system')}
                 </td>
                 <td style={{ padding: '0.625rem 0.875rem' }}>
                   <EventBadge type={log.event_type} />
