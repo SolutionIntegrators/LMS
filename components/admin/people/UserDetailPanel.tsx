@@ -7,7 +7,7 @@ import { updateUserTags } from '@/app/admin/content/actions'
 import type { StudentUser } from './StudentsPane'
 
 const fieldInput: React.CSSProperties = {
-  flex: 1, border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.5rem 0.7rem',
+  flex: 1, minWidth: 0, border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.5rem 0.7rem',
   fontSize: '0.86rem', color: 'var(--si-dark-text)', background: 'var(--si-white)', fontFamily: 'DM Sans, sans-serif',
 }
 const btnSave: React.CSSProperties = {
@@ -137,7 +137,7 @@ export default function UserDetailPanel({
       />
       <div
         style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(420px, 92vw)',
+          position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(560px, 92vw)',
           background: 'var(--si-white)', boxShadow: '-8px 0 40px rgba(30,40,48,0.18)',
           zIndex: 201, display: 'flex', flexDirection: 'column',
         }}
@@ -168,7 +168,7 @@ export default function UserDetailPanel({
           </button>
         </div>
 
-        <div style={{ padding: '1.25rem 1.35rem 2rem', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '1.25rem 1.35rem 2rem', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
           {error && (
             <div style={{ background: '#FDF0EE', color: '#8B2A1A', borderRadius: 'var(--si-radius-sm)', padding: '0.625rem 0.875rem', fontSize: '0.85rem', fontFamily: 'DM Sans, sans-serif', marginBottom: '1.1rem' }}>
               {error}
@@ -230,7 +230,7 @@ export default function UserDetailPanel({
             )}
             {user.programs.map((p) => (
               <div key={p.product_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem', background: 'var(--si-linen)', borderRadius: 'var(--si-radius-sm)', padding: '0.55rem 0.75rem', marginBottom: '0.5rem' }}>
-                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', color: 'var(--si-dark-text)', fontWeight: 500 }}>{p.title}</span>
+                <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', color: 'var(--si-dark-text)', fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                 <button
                   onClick={() => revoke(p.product_id)}
                   disabled={busy}
