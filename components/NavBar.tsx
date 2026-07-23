@@ -49,10 +49,8 @@ export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-        <a
-          href={branding.links.support}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href="/support"
           style={{
             color: 'var(--si-linen)',
             fontFamily: 'DM Sans, sans-serif',
@@ -63,7 +61,7 @@ export default function NavBar({ email, role, avatarUrl }: NavBarProps) {
           }}
         >
           Support
-        </a>
+        </Link>
         {branding.links.affiliate && (
           <a
             href={branding.links.affiliate}

@@ -206,6 +206,46 @@ their email) where they can:
   from per-thread mute, which only silences one thread) — this edits the same
   `community_subscriptions` row that's created automatically on purchase.
 
+## SOP 14 — In-app support ticketing
+
+**Support** in the nav now opens an in-app form (`/support`) instead of the
+external ClickUp form — your ClickUp workflow is unchanged underneath. Every
+submission still becomes a task on **[The Goodies Shop list](https://app.clickup.com/8619174/v/li/901400808508)**;
+`support_requests` in Supabase is just the record of what the student sees.
+
+- **Submission:** student fills in subject + details (+ optionally which
+  course) → a `support_requests` row is created immediately, then a matching
+  ClickUp task is created best-effort (a ClickUp outage never blocks the
+  student's submission — see the retry cron below).
+- **Student view (`/support`, "My requests"):** shows subject, status, and the
+  **Resolution** field once populated. Students only ever see one of 5
+  statuses — **New Ticket, Working On It, Pending Client Feedback, Testing,
+  Resolved** — never ClickUp's internal-only statuses (Triaged, Waiting on
+  Ashley, etc.); the visible status just holds steady while a ticket cycles
+  through internal work.
+- **Status sync:** a ClickUp webhook (`taskStatusUpdated`) hits
+  `/api/webhooks/clickup`, verified via the `secret` ClickUp returns when the
+  webhook is registered (`CLICKUP_WEBHOOK_SECRET`, checked against the
+  request's `X-Signature` header — **you need to register this webhook once**
+  via the ClickUp API, scoped to the support list, pointing at
+  `https://goodies.solutionintegrators.us/api/webhooks/clickup`). Every status
+  change updates `internal_status`; `client_visible_status` only advances on
+  one of the 5 client-visible statuses. The **Resolution** custom field is
+  re-pulled on every status change.
+- **Resolved email:** the first time a ticket's client-visible status becomes
+  **Resolved**, the student gets a Resend email with the Resolution content
+  (a generic "resolved" message if Resolution is still empty at that instant).
+  Guarded so it only ever sends once per ticket.
+- **Retry/backfill cron:** `GET /api/cron/support-sync?key=CRON_SECRET` —
+  schedule it like the other cron endpoints (e.g. every 15–30 min). Retries
+  ClickUp task creation for any ticket that failed at submission time, and
+  backfills the Resolution field if it was empty when the resolved email sent.
+- **Admin view:** **Admin → Support Requests** shows every ticket, including
+  `internal_status` and a direct link to the ClickUp task — admins never need
+  to cross-reference ClickUp to see what's outstanding.
+- Needs `CLICKUP_API_KEY` (personal API token) and `CLICKUP_WEBHOOK_SECRET`
+  set in Cloudflare Pages — see `.env.example`.
+
 ## Emails
 
 See [EMAIL.md](EMAIL.md). Auth emails (invite / magic link / reset) send via
