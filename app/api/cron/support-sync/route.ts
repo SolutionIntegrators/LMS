@@ -20,6 +20,7 @@ export async function GET(request: Request): Promise<Response> {
     return new Response('Unauthorized', { status: 401 })
   }
 
+  const origin = new URL(request.url).origin
   const db = createServiceSupabaseClient() as any
   let tasksCreated = 0
   let ticketsSynced = 0
@@ -52,12 +53,12 @@ export async function GET(request: Request): Promise<Response> {
 
   const { data: open } = await db
     .from('support_requests')
-    .select('id, clickup_task_id, user_id, subject, resolution, client_visible_status, resolved_notified_at')
+    .select('id, clickup_task_id, user_id, subject, description, resolution, additional_info_needed, client_visible_status, resolved_notified_at')
     .neq('client_visible_status', 'resolved')
     .not('clickup_task_id', 'is', null)
 
   for (const ticket of open ?? []) {
-    await syncSupportTicketFromClickUp(db, ticket)
+    await syncSupportTicketFromClickUp(db, ticket, origin)
     ticketsSynced += 1
   }
 

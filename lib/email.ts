@@ -8,20 +8,24 @@ import { branding } from './branding'
 
 const FROM = process.env.EMAIL_FROM || 'connect@solutionintegrators.us'
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+async function sendEmail(to: string, subject: string, html: string, cc?: string): Promise<void> {
   const key = process.env.RESEND_API_KEY
   if (!key) return // not configured — skip silently
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: `${branding.company} <${FROM}>`, to, subject, html }),
+      body: JSON.stringify({ from: `${branding.company} <${FROM}>`, to, cc, subject, html }),
     })
     if (!res.ok) console.error('Resend send failed:', res.status, (await res.text()).slice(0, 300))
   } catch (err) {
     console.error('sendEmail failed:', err instanceof Error ? err.message : err)
   }
 }
+
+// cc'd on every student-facing support ticket email, so the team always has
+// visibility without needing to open ClickUp.
+const SUPPORT_CC = process.env.ADMIN_ALERT_EMAIL || FROM
 
 function shell(bodyInner: string): string {
   return `<div style="background:#FCF1E8;padding:32px 0;font-family:'DM Sans',Helvetica,Arial,sans-serif;">
@@ -131,23 +135,72 @@ export async function sendCommunityDigestEmail(opts: {
   await sendEmail(opts.to, `This week in ${opts.productTitle}`, html)
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// Shared shape for both support-ticket update emails below — only the
+// section heading and its body text differ.
+function supportTicketUpdateEmail(opts: {
+  fullName?: string | null
+  description: string
+  subject: string
+  responseHeading: string
+  responseBody: string
+  supportUrl: string
+}): string {
+  const hi = opts.fullName ? `Hey ${opts.fullName}!` : 'Hey there!'
+  const question = escapeHtml(opts.description || opts.subject).replace(/\n/g, '<br/>')
+  return shell(`
+    <p style="margin:0 0 14px;">${hi}</p>
+    <p style="margin:0 0 14px;">Thank you so much for your recent support ticket. <em>In your support request you asked:</em></p>
+    <blockquote style="margin:0 0 18px;padding:10px 16px;border-left:3px solid #F0E0CC;color:#4a4a4a;">${question}</blockquote>
+    <p style="margin:0 0 6px;"><em>${opts.responseHeading}</em>:</p>
+    <blockquote style="margin:0 0 18px;padding:10px 16px;border-left:3px solid #F0E0CC;color:#4a4a4a;">${opts.responseBody}</blockquote>
+    <p style="margin:0 0 6px;"><em>What happens if I have more questions</em></p>
+    <p style="margin:0 0 18px;">If you need to request support again please <a href="${opts.supportUrl}" style="color:#A34F2B;font-weight:600;text-decoration:none;">click here</a> to submit another support ticket.</p>
+    <p style="margin:0 0 4px;">My team and I are here for you.</p>
+    <p style="margin:0;">Ashley | ${branding.company}</p>
+  `)
+}
+
 // Sent once, guarded by support_requests.resolved_notified_at, when a support
 // ticket's client_visible_status flips to "resolved".
 export async function sendSupportResolvedEmail(opts: {
   to: string
   fullName?: string | null
   subject: string
+  description: string
   resolution: string | null
+  supportUrl: string
 }): Promise<void> {
-  const hi = opts.fullName ? `Hi ${opts.fullName},` : 'Hi there,'
-  const html = shell(`
-    <p style="margin:0 0 14px;">${hi}</p>
-    <p style="margin:0 0 14px;">Your support request <strong>"${opts.subject}"</strong> has been resolved.</p>
-    ${opts.resolution
-      ? `<p style="margin:0 0 14px;">${opts.resolution.replace(/\n/g, '<br/>')}</p>`
-      : `<p style="margin:0 0 14px;">If you have any follow-up questions, just reply to this email.</p>`}
-  `)
-  await sendEmail(opts.to, `Your support request has been resolved: ${opts.subject}`, html)
+  const resolution = opts.resolution
+    ? escapeHtml(opts.resolution).replace(/\n/g, '<br/>')
+    : 'Your ticket has been resolved — reply to this email if you have any follow-up questions.'
+  const html = supportTicketUpdateEmail({
+    fullName: opts.fullName, description: opts.description, subject: opts.subject,
+    responseHeading: 'Support Response &amp; Answers', responseBody: resolution, supportUrl: opts.supportUrl,
+  })
+  await sendEmail(opts.to, `Your support request has been resolved: ${opts.subject}`, html, SUPPORT_CC)
+}
+
+// Sent whenever ClickUp's "Additional Info Needed" custom field is filled in
+// (or changed) on a ticket that isn't resolved yet — see syncSupportTicketFromClickUp.
+export async function sendSupportAdditionalInfoEmail(opts: {
+  to: string
+  fullName?: string | null
+  subject: string
+  description: string
+  additionalInfoNeeded: string
+  supportUrl: string
+}): Promise<void> {
+  const html = supportTicketUpdateEmail({
+    fullName: opts.fullName, description: opts.description, subject: opts.subject,
+    responseHeading: 'Support Response &amp; Request for Additional Info',
+    responseBody: escapeHtml(opts.additionalInfoNeeded).replace(/\n/g, '<br/>'),
+    supportUrl: opts.supportUrl,
+  })
+  await sendEmail(opts.to, `We need a bit more info on your support request: ${opts.subject}`, html, SUPPORT_CC)
 }
 
 // Sent to an affiliate/partner when their tracking link is created.
