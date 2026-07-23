@@ -55,7 +55,7 @@ export async function getRecommendedProducts(ownedProductIds: string[]): Promise
   const collect = (rows: any[]) => {
     for (const p of rows ?? []) {
       if (owned.has(p.id) || byId.has(p.id)) continue
-      const destinationUrl = (p.checkout_url || p.sales_page_url || '').trim()
+      const destinationUrl = (p.checkout_url || '').trim() || (p.sales_page_url || '').trim()
       if (!destinationUrl) continue // no way to buy → not actionable, skip
       byId.set(p.id, {
         id: p.id,

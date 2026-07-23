@@ -45,6 +45,7 @@ const TYPES = [
   { value: 'pdf', label: 'PDF' },
   { value: 'text', label: 'Text only' },
   { value: 'download', label: 'Download' },
+  { value: 'community', label: 'Community discussion board' },
 ]
 
 const fieldConfig: Record<string, { label: string; placeholder: string; help: string; hidden?: boolean }> = {
@@ -64,6 +65,7 @@ const fieldConfig: Record<string, { label: string; placeholder: string; help: st
     help: 'Direct link to the PDF file.',
   },
   text: { label: '', placeholder: '', help: '', hidden: true },
+  community: { label: '', placeholder: '', help: '', hidden: true },
   download: {
     label: 'File URL',
     placeholder: 'https://…',
@@ -158,7 +160,7 @@ export default function LessonEditForm({
             </label>
           )}
           {!showUrlField && (
-            <input type="hidden" name="content_url" value={contentType === 'text' ? '' : contentUrl} />
+            <input type="hidden" name="content_url" value={contentType === 'text' || contentType === 'community' ? '' : contentUrl} />
           )}
         </div>
 
