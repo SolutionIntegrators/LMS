@@ -1,26 +1,13 @@
 export const runtime = 'edge'
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import Link from 'next/link'
-import { createProduct, setProductCategory, duplicateProduct } from './actions'
+import { createProduct } from './actions'
+import ContentTable from '@/components/admin/content/ContentTable'
 
-const cell: React.CSSProperties = { padding: '0.625rem 0.875rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem' }
-const th: React.CSSProperties = { ...cell, color: 'var(--si-muted)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '2px solid var(--si-border)', textAlign: 'left' as const }
-
-const inputSm: React.CSSProperties = {
-  border: '1px solid var(--si-border)', borderRadius: 4, padding: '0.3rem 0.5rem',
-  fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-dark-text)', background: 'var(--si-white)',
-}
-const btnSm: React.CSSProperties = {
-  fontSize: '0.72rem', padding: '0.3rem 0.6rem', borderRadius: 4, border: '1px solid var(--si-border)',
-  background: 'var(--si-white)', cursor: 'pointer', whiteSpace: 'nowrap' as const, fontFamily: 'DM Sans, sans-serif', color: 'var(--si-dark-text)',
-}
 const inputStyle: React.CSSProperties = {
   border: '1.5px solid var(--si-border)', borderRadius: 'var(--si-radius-sm)', padding: '0.625rem 0.875rem',
   fontSize: '0.9rem', color: 'var(--si-dark-text)', background: 'var(--si-white)', width: '100%', fontFamily: 'DM Sans, sans-serif',
 }
-
-const UNCATEGORIZED = 'Uncategorized'
 
 export default async function AdminContentPage() {
   const supabase = await createServerSupabaseClient()
@@ -33,23 +20,6 @@ export default async function AdminContentPage() {
   const categoryNames = Array.from(
     new Set(products.map((p) => (p.category || '').trim()).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b))
-
-  // Group: named categories A→Z, then Uncategorized last
-  const groups = new Map<string, any[]>()
-  for (const c of categoryNames) groups.set(c, [])
-  groups.set(UNCATEGORIZED, [])
-  for (const p of products) {
-    const key = (p.category || '').trim() || UNCATEGORIZED
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(p)
-  }
-  // Drop empty groups, keep Uncategorized last
-  const orderedGroups = [...groups.entries()].filter(([, list]) => list.length > 0)
-  orderedGroups.sort((a, b) => {
-    if (a[0] === UNCATEGORIZED) return 1
-    if (b[0] === UNCATEGORIZED) return -1
-    return a[0].localeCompare(b[0])
-  })
 
   return (
     <div>
@@ -81,67 +51,13 @@ export default async function AdminContentPage() {
         </form>
       </div>
 
-      {products.length === 0 && (
+      {products.length === 0 ? (
         <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--si-muted)', fontFamily: 'DM Sans, sans-serif' }}>
           No products yet. Add one above.
         </div>
+      ) : (
+        <ContentTable products={products} />
       )}
-
-      {/* Grouped product tables */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        {orderedGroups.map(([groupName, list]) => (
-          <div key={groupName}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', marginBottom: '0.75rem' }}>
-              <h2 style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: '0.95rem', color: 'var(--si-denim-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                {groupName}
-              </h2>
-              <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--si-muted)' }}>({list.length})</span>
-            </div>
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={th}>Title</th>
-                    <th style={th}>Status</th>
-                    <th style={th}>Move to category</th>
-                    <th style={th}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((p, i) => (
-                    <tr key={p.id} style={{ borderBottom: '1px solid var(--si-border)', background: i % 2 === 0 ? 'var(--si-white)' : 'transparent' }}>
-                      <td style={{ ...cell, fontWeight: 500, color: 'var(--si-dark-text)' }}>{p.title}</td>
-                      <td style={cell}>
-                        <span style={{ background: p.is_active ? '#EDF7F0' : 'var(--si-linen)', color: p.is_active ? '#1A6B3C' : 'var(--si-muted)', padding: '0.2rem 0.6rem', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600 }}>
-                          {p.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={cell}>
-                        <form action={setProductCategory} style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <input name="category" list="category-options" defaultValue={p.category ?? ''} placeholder="Uncategorized" style={{ ...inputSm, width: 150 }} />
-                          <button type="submit" style={btnSm}>Save</button>
-                        </form>
-                      </td>
-                      <td style={{ ...cell, textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.375rem', alignItems: 'center' }}>
-                          <form action={duplicateProduct}>
-                            <input type="hidden" name="id" value={p.id} />
-                            <button type="submit" style={btnSm} title="Create a full copy (modules + lessons), saved as inactive">Duplicate</button>
-                          </form>
-                          <Link href={`/admin/content/${p.slug}`} className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem' }}>
-                            Edit →
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
