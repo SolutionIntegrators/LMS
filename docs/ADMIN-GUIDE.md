@@ -226,32 +226,40 @@ submission still becomes a task on **[The Goodies Shop list](https://app.clickup
   course) → a `support_requests` row is created immediately, then a matching
   ClickUp task is created best-effort (a ClickUp outage never blocks the
   student's submission — see the retry cron below).
-- **Student view (`/support`, "My requests"):** shows subject, status, and the
-  **Resolution** field once populated. Students only ever see one of 5
-  statuses — **New Ticket, Working On It, Pending Client Feedback, Testing,
-  Resolved** — never ClickUp's internal-only statuses (Triaged, Waiting on
-  Ashley, etc.); the visible status just holds steady while a ticket cycles
-  through internal work.
-- **Status sync:** a ClickUp webhook (`taskStatusUpdated`) hits
-  `/api/webhooks/clickup`, verified via the `secret` ClickUp returns when the
-  webhook is registered (`CLICKUP_WEBHOOK_SECRET`, checked against the
-  request's `X-Signature` header — **you need to register this webhook once**
-  via the ClickUp API, scoped to the support list, pointing at
-  `https://goodies.solutionintegrators.us/api/webhooks/clickup`). Every status
-  change updates `internal_status`; `client_visible_status` only advances on
-  one of the 5 client-visible statuses. The **Resolution** custom field is
-  re-pulled on every status change.
+- **Student view (`/support`, "My requests"):** shows subject, status, an
+  **Additional info needed** callout (see below), and the **Resolution**
+  field once populated. Students only ever see one of 5 statuses — **New
+  Ticket, Working On It, Pending Client Feedback, Testing, Resolved** — never
+  ClickUp's internal-only statuses (Triaged, Waiting on Ashley, etc.); the
+  visible status just holds steady while a ticket cycles through internal work.
+- **Additional info needed:** if you fill in ClickUp's **Additional Info
+  Needed** custom field on a ticket that isn't Resolved yet, the student sees
+  an orange callout with that text on their request card — a lightweight way
+  to ask a follow-up question without them having to dig through email.
+- **Status sync:** two layers, both reading ClickUp's task state directly
+  (status, Resolution, Additional Info Needed) rather than trusting anything
+  a webhook payload claims to contain:
+  - A ClickUp **Automation** ("Send Webhook" action) posts to
+    `/api/webhooks/clickup` with a custom `x-webhook-secret` header (checked
+    against `CLICKUP_WEBHOOK_SECRET`) whenever a task updates — a fast path,
+    but ClickUp Automations have no reliable way to attach a live status
+    value to the request, so the handler only needs the task id from it and
+    re-fetches everything else straight from the ClickUp API.
+  - `GET /api/cron/support-sync?key=CRON_SECRET` is the reliable backstop —
+    schedule it like the other cron endpoints (e.g. every 15–30 min). It
+    retries ClickUp task creation for any ticket that failed at submission
+    time, and re-polls every non-resolved ticket's live status/Resolution/
+    Additional Info Needed directly from ClickUp, so a missed or misconfigured
+    webhook never leaves a ticket stuck.
+  - Either path: `internal_status` always updates; `client_visible_status`
+    only advances on one of the 5 client-visible statuses.
 - **Resolved email:** the first time a ticket's client-visible status becomes
   **Resolved**, the student gets a Resend email with the Resolution content
   (a generic "resolved" message if Resolution is still empty at that instant).
   Guarded so it only ever sends once per ticket.
-- **Retry/backfill cron:** `GET /api/cron/support-sync?key=CRON_SECRET` —
-  schedule it like the other cron endpoints (e.g. every 15–30 min). Retries
-  ClickUp task creation for any ticket that failed at submission time, and
-  backfills the Resolution field if it was empty when the resolved email sent.
 - **Admin view:** **Admin → Support Requests** shows every ticket, including
-  `internal_status` and a direct link to the ClickUp task — admins never need
-  to cross-reference ClickUp to see what's outstanding.
+  `internal_status`, Additional Info Needed, and a direct link to the ClickUp
+  task — admins never need to cross-reference ClickUp to see what's outstanding.
 - Needs `CLICKUP_API_KEY` (personal API token) and `CLICKUP_WEBHOOK_SECRET`
   set in Cloudflare Pages — see `.env.example`.
 

@@ -11,6 +11,7 @@ const FIELD_PRODUCT = 'eb479ea5-1f5a-42ca-99a3-f10a25ea71e3' // "Which product a
 const FIELD_REQUEST_TYPE = 'd5114083-0893-449b-aec1-5d9df2c0d127'
 const REQUEST_TYPE_SUPPORT_OPTION = '6df087a6-8dd9-4b91-a47e-17b42eb53ff9' // "Support Request" option
 const FIELD_RESOLUTION = '84a6c35a-2330-4353-8e20-02debff361a3'
+const FIELD_ADDITIONAL_INFO = '9c1c4c58-c595-46b6-b620-4aa83fb86ba5'
 
 // The only 5 statuses ever shown to a student — everything else on the list
 // ("triaged", "waiting on ashley", etc.) is internal-only. Matched against
@@ -65,17 +66,35 @@ export async function createClickUpTask(opts: {
   }
 }
 
-// Best-effort: returns null on any failure (missing field, API error, etc.)
-// rather than throwing, so a status sync never fails outright over it.
-export async function getClickUpResolution(taskId: string): Promise<string | null> {
+export interface ClickUpTaskFields {
+  status: string | null
+  resolution: string | null
+  additionalInfoNeeded: string | null
+}
+
+// Fetches the task's *current* state directly from ClickUp — used as the
+// single source of truth for status/Resolution/Additional Info Needed,
+// rather than trusting whatever a webhook payload claims to contain (a
+// ClickUp Automation's "Send Webhook" action has no reliable way to attach a
+// live status value, unlike a natively-registered webhook's history diff).
+// Best-effort: returns null on any failure rather than throwing, so a sync
+// never fails outright over it.
+export async function getClickUpTaskFields(taskId: string): Promise<ClickUpTaskFields | null> {
   try {
     const res = await clickUpFetch(`/task/${taskId}`)
     if (!res.ok) return null
-    const json = (await res.json()) as { custom_fields?: Array<{ id: string; value?: unknown }> }
-    const field = (json.custom_fields ?? []).find((f) => f.id === FIELD_RESOLUTION)
-    return typeof field?.value === 'string' && field.value.trim() ? field.value : null
+    const json = (await res.json()) as { status?: { status?: string }; custom_fields?: Array<{ id: string; value?: unknown }> }
+    const textField = (id: string) => {
+      const field = (json.custom_fields ?? []).find((f) => f.id === id)
+      return typeof field?.value === 'string' && field.value.trim() ? field.value : null
+    }
+    return {
+      status: typeof json.status?.status === 'string' ? json.status.status.toLowerCase().trim() : null,
+      resolution: textField(FIELD_RESOLUTION),
+      additionalInfoNeeded: textField(FIELD_ADDITIONAL_INFO),
+    }
   } catch (err) {
-    console.error('getClickUpResolution failed:', err instanceof Error ? err.message : err)
+    console.error('getClickUpTaskFields failed:', err instanceof Error ? err.message : err)
     return null
   }
 }
