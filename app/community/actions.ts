@@ -82,7 +82,7 @@ export async function getThreadDetail(threadId: string) {
 
   const { data: thread, error } = await (supabase as any)
     .from('community_threads')
-    .select('id, title, body, created_at, product_id, author_user_id')
+    .select('id, title, body, created_at, product_id, author_user_id, is_pinned')
     .eq('id', threadId)
     .single()
   if (error || !thread) throw new Error(error?.message || 'Thread not found')
@@ -123,6 +123,7 @@ export async function getThreadDetail(threadId: string) {
     productId: thread.product_id,
     authorName: authors.get(thread.author_user_id) || 'Someone',
     isAuthor: thread.author_user_id === user.id,
+    isPinned: !!thread.is_pinned,
     isMuted: !!mute,
     reactions: summarizeReactions(threadReactions ?? [], user.id),
     replies: (replies ?? []).map((r: any) => ({
@@ -247,6 +248,22 @@ export async function editThread(formData: FormData) {
 
   const { error } = await (supabase as any).from('community_threads').update({ title, body }).eq('id', threadId)
   if (error) throw friendlyInsertError(error)
+  if (lessonSlugForRevalidate) revalidatePath(`/lessons/${lessonSlugForRevalidate}`)
+}
+
+// Admin-only. RLS (community_threads_admin_all) enforces this too — the role
+// check here just gives a friendly error instead of a raw RLS denial.
+export async function togglePinThread(formData: FormData) {
+  const { supabase, user } = await requireUser()
+  const threadId = formData.get('thread_id') as string
+  const pinned = formData.get('pinned') === 'true'
+  const lessonSlugForRevalidate = (formData.get('lesson_id') as string) || ''
+
+  const { data: profile } = await (supabase as any).from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') throw new Error('Only an admin can pin a thread')
+
+  const { error } = await (supabase as any).from('community_threads').update({ is_pinned: pinned }).eq('id', threadId)
+  if (error) throw new Error(error.message)
   if (lessonSlugForRevalidate) revalidatePath(`/lessons/${lessonSlugForRevalidate}`)
 }
 
