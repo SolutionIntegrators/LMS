@@ -1,10 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { headers } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { sendAffiliateWelcomeEmail } from '@/lib/email'
 import { upsertAffiliateLink } from '@/lib/airtable'
+import { branding } from '@/lib/branding'
 
 async function getAdminClient() {
   const supabase = await createServerSupabaseClient()
@@ -89,8 +89,7 @@ export async function createAffiliateLink(formData: FormData) {
   const { error } = await (db as any).from('affiliate_links').insert({ affiliate_id, product_id, code, destination_url })
   if (error) throw new Error(error.code === '23505' ? `Code "${code}" is already taken` : error.message)
 
-  const host = (await headers()).get('host') ?? 'goodies.solutionintegrators.us'
-  const link = `https://${host}/r/${code}`
+  const link = `${branding.siteUrl}/r/${code}`
   // Add this link as a row in the partner's Airtable "Affiliate Links" table.
   if (aff.email) {
     await upsertAffiliateLink({ partnerEmail: aff.email, partnerName: aff.name || null, product: productTitle || null, code, url: link })
