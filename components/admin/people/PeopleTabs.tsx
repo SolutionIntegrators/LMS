@@ -45,7 +45,11 @@ export default function PeopleTabs({
         <StudentsPane users={users} products={products} />
       </div>
       <div style={{ display: tab === 'affiliates' ? 'block' : 'none' }}>
-        <AffiliatesPane affiliates={affiliates} products={products} />
+        <AffiliatesPane
+          affiliates={affiliates}
+          products={products}
+          users={users.map((u) => ({ id: u.id, email: u.email, full_name: u.full_name }))}
+        />
       </div>
     </div>
   )
