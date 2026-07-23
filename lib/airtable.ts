@@ -219,32 +219,6 @@ export async function updateSaleAttribution(transactionRef: string, attr: {
   }
 }
 
-// Stamp an affiliate's code onto their existing partner row in the Backoffice
-// Hub (matched by Email Address). The "Affiliate Link" formula field builds the
-// full URL from it. Best-effort + update-only: if no partner matches the email
-// we skip rather than create, so partner records / payout links stay intact.
-export async function syncAffiliateCodeToPartnerHub(email: string, code: string): Promise<void> {
-  if (!token() || !email) return
-  try {
-    const qs = new URLSearchParams({
-      filterByFormula: `LOWER({Email Address})='${esc(email.toLowerCase())}'`,
-      maxRecords: '1',
-    })
-    const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
-    const rec = found.records?.[0]
-    if (!rec) {
-      console.warn(`No partner record found for affiliate email ${email} — code not synced`)
-      return
-    }
-    await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}/${rec.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ fields: { 'Affiliate Code': code }, typecast: true }),
-    })
-  } catch (err) {
-    console.error('syncAffiliateCodeToPartnerHub failed:', err instanceof Error ? err.message : err)
-  }
-}
-
 // Get-or-create a partner record in the Backoffice Hub, matched by email. An
 // affiliate created directly in the LMS admin (rather than via the Airtable
 // application flow in AFFILIATE-SOP.md §3) has no partner row waiting for it,
