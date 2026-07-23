@@ -67,6 +67,70 @@ export async function sendAdminAlert(subject: string, bodyInner: string): Promis
   await sendEmail(to, subject, shell(bodyInner))
 }
 
+// Admin heads-up on every new community thread, regardless of subscriptions.
+export async function sendCommunityNewThreadAdminEmail(opts: {
+  productTitle: string
+  threadTitle: string
+  authorLabel: string
+  threadUrl: string
+}): Promise<void> {
+  await sendAdminAlert(
+    `New community thread in ${opts.productTitle}: ${opts.threadTitle}`,
+    `
+    <p style="margin:0 0 14px;">${opts.authorLabel} posted a new thread in the <strong>${opts.productTitle}</strong> community:</p>
+    <p style="margin:0 0 14px;font-weight:600;">${opts.threadTitle}</p>
+    <p style="margin:22px 0;">${button(opts.threadUrl, 'View thread')}</p>
+    `
+  )
+}
+
+// Sent to course-subscribed, non-muted students on a new thread or reply.
+export async function sendCommunityActivityEmail(opts: {
+  to: string
+  fullName?: string | null
+  productTitle: string
+  threadTitle: string
+  kind: 'thread' | 'reply'
+  authorLabel: string
+  excerpt: string
+  threadUrl: string
+}): Promise<void> {
+  const hi = opts.fullName ? `Hi ${opts.fullName},` : 'Hi there,'
+  const what = opts.kind === 'thread' ? 'started a new thread' : 'replied'
+  const html = shell(`
+    <p style="margin:0 0 14px;">${hi}</p>
+    <p style="margin:0 0 14px;">${opts.authorLabel} ${what} in the <strong>${opts.productTitle}</strong> community:</p>
+    <p style="margin:0 0 6px;font-weight:600;">${opts.threadTitle}</p>
+    <p style="margin:0 0 14px;color:#4a4a4a;">${opts.excerpt}</p>
+    <p style="margin:22px 0;">${button(opts.threadUrl, 'View & reply')}</p>
+    <p style="margin:14px 0 0;color:#7A8A95;font-size:13px;">Don't want emails for this thread? Open it and tap Mute — everything else in this community still reaches you.</p>
+  `)
+  await sendEmail(opts.to, `${opts.authorLabel} ${what} in ${opts.productTitle}`, html)
+}
+
+// Weekly "This Week in the Community" roundup, one per subscribed student.
+export async function sendCommunityDigestEmail(opts: {
+  to: string
+  fullName?: string | null
+  productTitle: string
+  newThreads: Array<{ title: string; replyCount: number; url: string }>
+  communityUrl: string
+}): Promise<void> {
+  const hi = opts.fullName ? `Hi ${opts.fullName},` : 'Hi there,'
+  const rows = opts.newThreads.map((t) => `
+    <li style="margin-bottom:10px;">
+      <a href="${t.url}" style="color:#A34F2B;font-weight:600;text-decoration:none;">${t.title}</a>
+      <span style="color:#7A8A95;font-size:13px;"> — ${t.replyCount} repl${t.replyCount === 1 ? 'y' : 'ies'}</span>
+    </li>`).join('')
+  const html = shell(`
+    <p style="margin:0 0 14px;">${hi}</p>
+    <p style="margin:0 0 14px;">Here's what happened this week in the <strong>${opts.productTitle}</strong> community:</p>
+    <ul style="margin:0 0 18px;padding-left:20px;">${rows}</ul>
+    <p style="margin:22px 0;">${button(opts.communityUrl, 'Visit the community')}</p>
+  `)
+  await sendEmail(opts.to, `This week in ${opts.productTitle}`, html)
+}
+
 // Sent to an affiliate/partner when their tracking link is created.
 export async function sendAffiliateWelcomeEmail(opts: {
   to: string

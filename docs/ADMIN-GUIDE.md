@@ -151,6 +151,36 @@ Full detail in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**. In short:
   clicks, payouts. **Resend dashboard:** email delivery. **Stripe dashboard:**
   Stripe payments + the webhook delivery log.
 
+## SOP 12 — Community discussion boards
+
+A per-course discussion board, gated to buyers of that course for a limited
+window after purchase (default 6 months — set per product).
+
+- **Enable it:** on a product's lesson, set **Content Type → "Community
+  discussion board"** (no URL needed). On the **product's** settings, set
+  **Community access window (months)** (default 6) — this governs how long a
+  buyer can read/post, counted from their `user_product_access.granted_at`.
+  Once expired, the lesson shows "Your access to this community has expired"
+  instead of the board (they keep the rest of the course).
+- **Access model:** every buyer is subscribed to the whole course's community
+  by default the moment they're granted access (no separate opt-in). Students
+  mute individual threads from the thread view (🔔/🔕 toggle) to stop emails
+  for just that one — everything else in the community still reaches them.
+- **Notifications (via Resend, not Kit):**
+  - **New thread** → you (admin, via `ADMIN_ALERT_EMAIL` or the from-address)
+    always get an email, plus every subscribed/non-expired student.
+  - **New reply** → subscribed, non-muted-on-that-thread, non-expired students
+    (no separate admin email for replies).
+  - **Weekly digest** ("This week in the community") → one email per
+    subscribed, non-expired student, per course, for any course that had a new
+    thread or reply in the last 7 days. This is a cron endpoint like the other
+    three below — schedule it the same way, once a week:
+    `GET /api/cron/community-digest?key=CRON_SECRET`.
+- Threads/replies are RLS-gated the same way as everything else (see
+  `has_active_community_access()` in `0013_community.sql`) — a student who
+  never bought the course, or whose window lapsed, cannot read or post even by
+  guessing a thread URL.
+
 ## Emails
 
 See [EMAIL.md](EMAIL.md). Auth emails (invite / magic link / reset) send via

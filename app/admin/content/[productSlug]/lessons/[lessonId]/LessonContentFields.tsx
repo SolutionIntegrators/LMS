@@ -27,6 +27,7 @@ const TYPES = [
   { value: 'pdf', label: 'PDF' },
   { value: 'text', label: 'Text only' },
   { value: 'download', label: 'Download' },
+  { value: 'community', label: 'Community discussion board' },
 ]
 
 const fieldConfig: Record<string, { label: string; placeholder: string; help: string; hidden?: boolean }> = {
@@ -55,6 +56,12 @@ const fieldConfig: Record<string, { label: string; placeholder: string; help: st
     label: 'File URL',
     placeholder: 'https://…',
     help: 'Direct download link for the file.',
+  },
+  community: {
+    label: '',
+    placeholder: '',
+    help: '',
+    hidden: true,
   },
 }
 
@@ -106,9 +113,9 @@ export default function LessonContentFields({
         </label>
       )}
 
-      {/* Always submit content_url — empty for text/no-type */}
+      {/* Always submit content_url — empty for text/community/no-type */}
       {!showUrlField && (
-        <input type="hidden" name="content_url" value={type === 'text' ? '' : url} />
+        <input type="hidden" name="content_url" value={type === 'text' || type === 'community' ? '' : url} />
       )}
     </div>
   )

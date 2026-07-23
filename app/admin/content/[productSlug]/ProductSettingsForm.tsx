@@ -87,6 +87,16 @@ export default function ProductSettingsForm({ product, kitTags = [], allProducts
         </span>
       </label>
 
+      {/* Community discussion board access window. Only matters if this product
+          has a lesson with Content Type = "Community discussion board". */}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', maxWidth: 240 }}>
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: 500, color: 'var(--si-muted)' }}>Community access window (months)</span>
+        <input type="number" min={1} name="community_access_months" defaultValue={product.community_access_months ?? 6} style={inputStyle} />
+        <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', color: 'var(--si-muted)' }}>
+          How long a buyer can post/read in this product&apos;s community, counted from their purchase date.
+        </span>
+      </label>
+
       {/* Upsell — "You may also be interested in". Two parts: (1) what owners of
           THIS product get recommended; (2) how THIS product's card behaves when
           it's recommended elsewhere. */}
