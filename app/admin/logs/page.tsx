@@ -13,7 +13,7 @@ export default async function AdminLogsPage({
 
   let query = supabase
     .from('activity_logs')
-    .select('id, user_id, event_type, product_id, lesson_id, metadata, created_at, profiles(email), products(title)')
+    .select('id, user_id, event_type, product_id, lesson_id, metadata, created_at, products(title)')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -23,11 +23,22 @@ export default async function AdminLogsPage({
   }
 
   const { data: logsRaw } = await query
-  const logs = logsRaw as any[] | null
+  const logs = (logsRaw ?? []) as any[]
+
+  // activity_logs.user_id references auth.users, not public.profiles, so
+  // PostgREST can't embed profiles(...) directly (same reason as community
+  // threads/replies and support_requests) — resolve emails via a separate
+  // lookup instead.
+  const userIds = [...new Set(logs.map((l) => l.user_id).filter(Boolean))]
+  const emailById = new Map<string, string>()
+  if (userIds.length > 0) {
+    const { data: profileRows } = await (supabase as any).from('profiles').select('id, email').in('id', userIds)
+    for (const p of profileRows ?? []) emailById.set(p.id, p.email)
+  }
 
   const filtered = userFilter
-    ? (logs ?? []).filter((l) => (l.profiles as any)?.email?.toLowerCase().includes(userFilter.toLowerCase()))
-    : (logs ?? [])
+    ? logs.filter((l) => (emailById.get(l.user_id) ?? '').toLowerCase().includes(userFilter.toLowerCase()))
+    : logs
 
   const eventTypes = ['login', 'logout', 'lesson_viewed', 'lesson_completed', 'product_accessed', 'purchase', 'download']
 
