@@ -58,9 +58,11 @@ async function getActiveSubscribedIds(db: ReturnType<typeof createServiceSupabas
   return (access ?? [])
     .filter((a: any) => {
       // Calendar-month arithmetic, matching has_active_community_access()'s
-      // Postgres interval math (not a flat 30-day approximation).
+      // Postgres interval math (not a flat 30-day approximation). Uses the UTC
+      // setters/getters (not setMonth/getMonth) so this can't drift from
+      // Postgres's UTC-based interval math depending on the host's local TZ.
       const expiry = new Date(a.granted_at)
-      expiry.setMonth(expiry.getMonth() + months)
+      expiry.setUTCMonth(expiry.getUTCMonth() + months)
       return expiry.getTime() > now
     })
     .map((a: any) => a.user_id)
@@ -122,9 +124,13 @@ export async function notifyNewThread(opts: {
     if (!lessonId) return
     const url = communityUrl(opts.origin, lessonId, opts.threadId)
 
-    await sendCommunityNewThreadAdminEmail({
-      productTitle: opts.productTitle, threadTitle: opts.threadTitle, authorLabel: opts.authorLabel, threadUrl: url,
-    })
+    // Skip the admin heads-up when the admin is the one who posted it.
+    const { data: authorProfile } = await (db as any).from('profiles').select('role').eq('id', opts.authorUserId).single()
+    if (authorProfile?.role !== 'admin') {
+      await sendCommunityNewThreadAdminEmail({
+        productTitle: opts.productTitle, threadTitle: opts.threadTitle, authorLabel: opts.authorLabel, threadUrl: url,
+      })
+    }
 
     const recipients = await getRecipients(db, opts.productId, { excludeUserId: opts.authorUserId })
     for (const r of recipients) {

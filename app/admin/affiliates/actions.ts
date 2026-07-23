@@ -52,6 +52,14 @@ export async function createAffiliateLink(formData: FormData) {
   const { data: aff } = await (db as any).from('affiliates').select('name, email').eq('id', affiliate_id).single()
   if (!aff) throw new Error('Affiliate not found')
 
+  // Idempotent: don't create a second link for the same affiliate+product (e.g.
+  // a double-submit) — the self-service endpoint already reuses one, mirror that.
+  if (product_id) {
+    const { data: existing } = await (db as any).from('affiliate_links')
+      .select('code').eq('affiliate_id', affiliate_id).eq('product_id', product_id).maybeSingle()
+    if (existing) throw new Error(`This affiliate already has a link for this product ("${existing.code}") — edit or remove it instead of adding another.`)
+  }
+
   // Look up the promoted product (for auto-code, the Airtable link label, and to
   // default the destination to the product's sales page — so you never retype it).
   let productSlug = '', productTitle = '', productSalesUrl = ''

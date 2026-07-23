@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServiceSupabaseClient } from '@/lib/supabase-service'
 import { notifyNewThread, notifyNewReply } from '@/lib/community'
 
 async function requireUser() {
@@ -10,6 +11,20 @@ async function requireUser() {
   if (!user) throw new Error('Unauthenticated')
   const { data: profile } = await (supabase as any).from('profiles').select('full_name, email').eq('id', user.id).single()
   return { supabase, user, profile }
+}
+
+// community_threads/community_replies reference auth.users, not public.profiles,
+// so PostgREST can't embed profiles(...) directly — resolve display names via a
+// separate, service-role-backed lookup instead (profiles RLS only allows a user
+// to read their own row, so this can't go through the session-scoped client).
+async function getAuthorNames(userIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(userIds.filter(Boolean))]
+  if (ids.length === 0) return new Map()
+  const db = createServiceSupabaseClient() as any
+  const { data } = await db.from('profiles').select('id, full_name, email').in('id', ids)
+  const map = new Map<string, string>()
+  for (const p of data ?? []) map.set(p.id, p.full_name || p.email || 'Someone')
+  return map
 }
 
 // RLS denies the insert outright if community access has expired/never
@@ -25,11 +40,13 @@ export async function getThreadList(productId: string) {
   const { supabase } = await requireUser()
   const { data, error } = await (supabase as any)
     .from('community_threads')
-    .select('id, title, is_pinned, created_at, updated_at, author_user_id, profiles(full_name, email), community_replies(count)')
+    .select('id, title, is_pinned, created_at, updated_at, author_user_id, community_replies(count)')
     .eq('product_id', productId)
     .order('is_pinned', { ascending: false })
     .order('updated_at', { ascending: false })
   if (error) throw new Error(error.message)
+
+  const authors = await getAuthorNames((data ?? []).map((t: any) => t.author_user_id))
 
   return (data ?? []).map((t: any) => ({
     id: t.id,
@@ -37,7 +54,7 @@ export async function getThreadList(productId: string) {
     isPinned: t.is_pinned,
     createdAt: t.created_at,
     lastActivity: t.updated_at,
-    authorName: t.profiles?.full_name || t.profiles?.email || 'Someone',
+    authorName: authors.get(t.author_user_id) || 'Someone',
     replyCount: t.community_replies?.[0]?.count ?? 0,
   }))
 }
@@ -47,14 +64,14 @@ export async function getThreadDetail(threadId: string) {
 
   const { data: thread, error } = await (supabase as any)
     .from('community_threads')
-    .select('id, title, body, created_at, product_id, author_user_id, profiles(full_name, email)')
+    .select('id, title, body, created_at, product_id, author_user_id')
     .eq('id', threadId)
     .single()
   if (error || !thread) throw new Error(error?.message || 'Thread not found')
 
   const { data: replies } = await (supabase as any)
     .from('community_replies')
-    .select('id, body, created_at, author_user_id, profiles(full_name, email)')
+    .select('id, body, created_at, author_user_id')
     .eq('thread_id', threadId)
     .order('created_at', { ascending: true })
 
@@ -65,19 +82,21 @@ export async function getThreadDetail(threadId: string) {
     .eq('user_id', user.id)
     .maybeSingle()
 
+  const authors = await getAuthorNames([thread.author_user_id, ...(replies ?? []).map((r: any) => r.author_user_id)])
+
   return {
     id: thread.id,
     title: thread.title,
     body: thread.body,
     createdAt: thread.created_at,
     productId: thread.product_id,
-    authorName: thread.profiles?.full_name || thread.profiles?.email || 'Someone',
+    authorName: authors.get(thread.author_user_id) || 'Someone',
     isMuted: !!mute,
     replies: (replies ?? []).map((r: any) => ({
       id: r.id,
       body: r.body,
       createdAt: r.created_at,
-      authorName: r.profiles?.full_name || r.profiles?.email || 'Someone',
+      authorName: authors.get(r.author_user_id) || 'Someone',
     })),
   }
 }

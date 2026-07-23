@@ -67,8 +67,8 @@ export async function POST(request: Request): Promise<Response> {
     const { data: products } = await (db as any).from('products')
       .select('id, title, slug, sales_page_url')
       .or(`slug.eq.${norm},title.ilike.${productRef}`)
-    const product = (products ?? []).find((p: any) => p.sales_page_url) ?? null
-    if (!product) return { product: productRef, error: 'not affiliate-eligible (no Sales page URL)' }
+    const product = (products ?? []).find((p: any) => /^https?:\/\//.test((p.sales_page_url ?? '').trim())) ?? null
+    if (!product) return { product: productRef, error: 'not affiliate-eligible (no valid Sales page URL)' }
 
     // Idempotent: reuse an existing link for this partner + product.
     const { data: existing } = await (db as any).from('affiliate_links')
@@ -82,7 +82,7 @@ export async function POST(request: Request): Promise<Response> {
     for (let n = 2; takenSet.has(code); n++) code = `${base}-${n}`
 
     const { error: linkErr } = await (db as any).from('affiliate_links')
-      .insert({ affiliate_id: affiliate.id, product_id: product.id, code, destination_url: product.sales_page_url })
+      .insert({ affiliate_id: affiliate.id, product_id: product.id, code, destination_url: product.sales_page_url.trim() })
     if (linkErr) return { product: product.title, error: linkErr.message }
 
     const link = `${url.origin}/r/${code}`
