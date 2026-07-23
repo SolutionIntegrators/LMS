@@ -17,12 +17,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     )
   }
 
-  const { data: profileRaw } = await supabase
+  // Cast: avatar_url is newer than the generated DB types.
+  const { data: profileRaw } = await (supabase as any)
     .from('profiles')
-    .select('email, role')
+    .select('email, role, avatar_url')
     .eq('id', user.id)
     .single()
-  const profile = profileRaw as { email: string; role: string } | null
+  const profile = profileRaw as { email: string; role: string; avatar_url: string | null } | null
 
   if (!profile || profile.role !== 'admin') {
     return (
@@ -42,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--si-linen)' }}>
-      <NavBar email={profile.email} role="admin" />
+      <NavBar email={profile.email} role="admin" avatarUrl={profile.avatar_url ?? null} />
       <div style={{ borderBottom: '1px solid var(--si-border)', background: 'var(--si-white)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 1.5rem', display: 'flex', gap: '0.25rem' }}>
           {navItems.map((item) => (
