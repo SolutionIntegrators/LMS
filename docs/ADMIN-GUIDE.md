@@ -159,37 +159,40 @@ Full detail in **[AFFILIATE-SOP.md](AFFILIATE-SOP.md)**. In short:
 
 ## SOP 12 — Community discussion boards
 
-A per-course discussion board, gated to buyers of that course for a limited
-window after purchase (default 6 months — set per product).
+A per-course discussion board, gated to buyers of that course for as long as
+they own the course — no separate time limit.
 
 - **Enable it:** on a product's lesson, set **Content Type → "Community
-  discussion board"** (no URL needed). On the **product's** settings, set
-  **Community access window (months)** (default 6) — this governs how long a
-  buyer can read/post, counted from their `user_product_access.granted_at`.
-  Once expired, the lesson shows "Your access to this community has expired"
-  instead of the board (they keep the rest of the course).
+  discussion board"** (no URL needed). Access lasts exactly as long as the
+  student's product access does (same as any other lesson) — there's no
+  separate community expiry to configure.
 - **Access model:** every buyer is subscribed to the whole course's community
   by default the moment they're granted access (no separate opt-in). Students
   mute individual threads from the thread view (🔔/🔕 toggle) to stop emails
   for just that one — everything else in the community still reaches them.
 - **Notifications (via Resend, not Kit):**
   - **New thread** → you (admin, via `ADMIN_ALERT_EMAIL` or the from-address)
-    always get an email, plus every subscribed/non-expired student.
-  - **New reply** → subscribed, non-muted-on-that-thread, non-expired students
-    (no separate admin email for replies).
+    always get an email, plus every subscribed student who still owns the course.
+  - **New reply** → subscribed, non-muted-on-that-thread students who still own
+    the course (no separate admin email for replies).
   - **Weekly digest** ("This week in the community") → one email per
-    subscribed, non-expired student, per course, for any course that had a new
-    thread or reply in the last 7 days. This is a cron endpoint like the other
-    three below — schedule it the same way, once a week:
+    subscribed student (who still owns the course), per course, for any course
+    that had a new thread or reply in the last 7 days. This is a cron endpoint
+    like the other three below — schedule it the same way, once a week:
     `GET /api/cron/community-digest?key=CRON_SECRET`.
 - Threads/replies are RLS-gated the same way as everything else (see
-  `has_active_community_access()` in `0013_community.sql`) — a student who
-  never bought the course, or whose window lapsed, cannot read or post even by
-  guessing a thread URL. Deactivating a product also revokes community access,
-  even for buyers whose access row is still on file.
-- **Formatting:** posts support the same lightweight markdown as lesson text
-  blocks — `**bold**`, `*italic*`, `[label](https://url)`, and lines starting
-  with `- ` become bullets (see `lib/markdown.ts`).
+  `has_active_community_access()` in `0013_community.sql`, updated in
+  `0018_community_no_access_expiry.sql`) — a student who never bought the
+  course cannot read or post even by guessing a thread URL. Deactivating a
+  product also revokes community access, even for buyers whose access row is
+  still on file.
+- **Formatting:** posts use a small toolbar (Bold, Italic, bulleted/numbered
+  list, link, image upload) above the text box — see `MarkdownEditor.tsx`.
+  Under the hood it's the same lightweight markdown as lesson text blocks —
+  `**bold**`, `*italic*`, `[label](https://url)`, `![alt](https://url)`
+  images, lines starting with `- ` for bullets, and `1. ` for numbered lists
+  (see `lib/markdown.ts`). Uploaded images go to the public `community-uploads`
+  Supabase Storage bucket, one folder per user.
 - **Reactions:** students can react to any thread or reply with a fixed set of
   emoji (👍 ❤️ 😂 🎉 🤔 👀 — see `lib/reactions.ts`). One reaction per emoji per
   person; clicking an already-picked emoji removes it.

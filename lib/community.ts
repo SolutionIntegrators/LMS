@@ -3,9 +3,9 @@
 // Access model: a course-level subscription (community_subscriptions,
 // subscribed=true by default, created on purchase — see lib/grant.ts) plus a
 // per-thread mute (community_thread_mutes). Recipients for a thread/reply =
-// subscribed && not muted-for-this-thread && still within the product's
-// community_access_months window (from user_product_access.granted_at) &&
-// not the actor themselves. All sends are best-effort — a Resend failure must
+// subscribed && not muted-for-this-thread && not the actor themselves.
+// Community access lasts exactly as long as product ownership does — no
+// separate time window. All sends are best-effort — a Resend failure must
 // never block posting.
 
 import { createServiceSupabaseClient } from './supabase-service'
@@ -33,13 +33,10 @@ export function communityUrl(origin: string, lessonId: string, threadId?: string
   return threadId ? `${origin}/lessons/${lessonId}?thread=${threadId}` : `${origin}/lessons/${lessonId}`
 }
 
-// Course-subscribed user ids whose access is still within the product's
-// community_access_months window (from user_product_access.granted_at).
+// Course-subscribed user ids who still own the product (community access
+// lasts exactly as long as product ownership does).
 async function getActiveSubscribedIds(db: ReturnType<typeof createServiceSupabaseClient>, productId: string): Promise<string[]> {
   const anyDb = db as any
-
-  const { data: product } = await anyDb.from('products').select('community_access_months').eq('id', productId).single()
-  const months = product?.community_access_months ?? 6
 
   const { data: subs } = await anyDb
     .from('community_subscriptions')
@@ -51,21 +48,10 @@ async function getActiveSubscribedIds(db: ReturnType<typeof createServiceSupabas
 
   const { data: access } = await anyDb
     .from('user_product_access')
-    .select('user_id, granted_at')
+    .select('user_id')
     .eq('product_id', productId)
     .in('user_id', subscribedIds)
-  const now = Date.now()
-  return (access ?? [])
-    .filter((a: any) => {
-      // Calendar-month arithmetic, matching has_active_community_access()'s
-      // Postgres interval math (not a flat 30-day approximation). Uses the UTC
-      // setters/getters (not setMonth/getMonth) so this can't drift from
-      // Postgres's UTC-based interval math depending on the host's local TZ.
-      const expiry = new Date(a.granted_at)
-      expiry.setUTCMonth(expiry.getUTCMonth() + months)
-      return expiry.getTime() > now
-    })
-    .map((a: any) => a.user_id)
+  return (access ?? []).map((a: any) => a.user_id)
 }
 
 // Course-subscribed, non-expired, non-muted-for-this-thread recipients,

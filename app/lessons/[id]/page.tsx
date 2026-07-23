@@ -42,7 +42,7 @@ export default async function LessonPage({
       id, title, description, content_type, content_url, sort_order, required_tag, is_preview, is_published, content_blocks,
       modules (
         id, title, product_id, required_tag,
-        products (id, title, slug, is_active, community_access_months)
+        products (id, title, slug, is_active)
       )
     `)
     .eq('id', id)
@@ -75,26 +75,17 @@ export default async function LessonPage({
     }
 
     // Purchase check — free-preview lessons bypass only this. Community boards
-    // never do: they always require live, non-expired access (no free preview).
+    // never do: they always require live product access (no free preview).
     const isCommunity = lessonData.content_type === 'community'
     if (!lessonData.is_preview || isCommunity) {
       const { data: access } = await supabase
         .from('user_product_access')
-        .select('id, granted_at')
+        .select('id')
         .eq('user_id', user.id)
         .eq('product_id', product?.id ?? '')
         .single()
 
       if (!access) return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>You don&apos;t have access to this lesson.</div>
-
-      if (isCommunity) {
-        const months = product?.community_access_months ?? 6
-        const expiresAt = new Date((access as any).granted_at)
-        expiresAt.setMonth(expiresAt.getMonth() + months)
-        if (expiresAt.getTime() <= Date.now()) {
-          return <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-muted)' }}>Your access to this community has expired.</div>
-        }
-      }
     }
   }
 
