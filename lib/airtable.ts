@@ -245,11 +245,49 @@ export async function syncAffiliateCodeToPartnerHub(email: string, code: string)
   }
 }
 
+// Get-or-create a partner record in the Backoffice Hub, matched by email. An
+// affiliate created directly in the LMS admin (rather than via the Airtable
+// application flow in AFFILIATE-SOP.md §3) has no partner row waiting for it,
+// so without this their links would sync as orphaned rows with no Partner
+// attached — invisible from the partner's own interface, the Partners table,
+// and any payout rollups. Best-effort: returns null on any failure.
+async function ensurePartnerRecord(opts: { name?: string | null; email: string }): Promise<string | null> {
+  if (!token() || !opts.email) return null
+  try {
+    const qs = new URLSearchParams({ filterByFormula: `LOWER({Email Address})='${esc(opts.email.toLowerCase())}'`, maxRecords: '1' })
+    const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
+    const existingId = found.records?.[0]?.id
+    if (existingId) return existingId
+
+    const fullName = (opts.name || '').trim() || opts.email
+    const firstName = fullName.split(/\s+/)[0]
+    const created = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fields: {
+          'First and Last Name': fullName,
+          'First Name': firstName,
+          'Email Address': opts.email,
+          'Partner Status': 'Active',
+          'Partner Type': 'Affiliate',
+        },
+        typecast: true,
+      }),
+    })
+    return created.id
+  } catch (err) {
+    console.error('ensurePartnerRecord failed:', err instanceof Error ? err.message : err)
+    return null
+  }
+}
+
 // Upsert one row in the "Affiliate Links" table (by Code), linked to the
-// partner. Called when a link is created so partners see all their links in the
-// interface. Best-effort.
+// partner (creating the partner record if one doesn't exist yet — see
+// ensurePartnerRecord). Called when a link is created so partners see all
+// their links in the interface. Best-effort.
 export async function upsertAffiliateLink(opts: {
   partnerEmail?: string | null
+  partnerName?: string | null
   product?: string | null
   code: string
   url: string
@@ -258,9 +296,7 @@ export async function upsertAffiliateLink(opts: {
   try {
     let partnerId: string | null = null
     if (opts.partnerEmail) {
-      const qs = new URLSearchParams({ filterByFormula: `LOWER({Email Address})='${esc(opts.partnerEmail.toLowerCase())}'`, maxRecords: '1' })
-      const found = await at(`${PARTNERS_BASE}/${PARTNERS_TABLE}?${qs.toString()}`)
-      partnerId = found.records?.[0]?.id ?? null
+      partnerId = await ensurePartnerRecord({ name: opts.partnerName, email: opts.partnerEmail })
     }
     const fields: Json = { Code: opts.code, 'Tracking Link': opts.url }
     if (opts.product) fields['Product'] = opts.product

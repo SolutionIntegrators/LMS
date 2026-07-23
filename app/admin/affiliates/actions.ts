@@ -93,7 +93,7 @@ export async function createAffiliateLink(formData: FormData) {
   const link = `https://${host}/r/${code}`
   // Add this link as a row in the partner's Airtable "Affiliate Links" table.
   if (aff.email) {
-    await upsertAffiliateLink({ partnerEmail: aff.email, product: productTitle || null, code, url: link })
+    await upsertAffiliateLink({ partnerEmail: aff.email, partnerName: aff.name || null, product: productTitle || null, code, url: link })
     await sendAffiliateWelcomeEmail({ to: aff.email, name: aff.name || null, link })
   }
   revalidatePath('/admin/people')

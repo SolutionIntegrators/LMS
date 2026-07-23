@@ -86,7 +86,7 @@ export async function POST(request: Request): Promise<Response> {
     if (linkErr) return { product: product.title, error: linkErr.message }
 
     const link = `${url.origin}/r/${code}`
-    await upsertAffiliateLink({ partnerEmail: email, product: product.title, code, url: link })
+    await upsertAffiliateLink({ partnerEmail: email, partnerName: affiliate.name || null, product: product.title, code, url: link })
     return { product: product.title, code, link }
   }
 
