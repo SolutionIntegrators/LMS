@@ -20,15 +20,23 @@ export interface AffiliateLinkResult {
   error?: string
 }
 
+export interface AffiliateLinksForPartnerResult {
+  affiliateName: string
+  results: AffiliateLinkResult[]
+}
+
 // Finds or creates the affiliate by email, then creates (or reuses) one
 // tracking link per requested product. Each productRef may be a product
-// title, slug, or a `/products/<slug>` path.
+// title, slug, or a `/products/<slug>` path. Does NOT send any email itself —
+// callers batch newly-created links (results without `existed`/`error`) into
+// one email per partner per processing run; see /api/cron/sync-link-requests
+// and /api/affiliate/create-link.
 export async function createAffiliateLinksForPartner(opts: {
   email: string
   partnerName?: string | null
   commissionRate?: number | null
   productRefs: string[]
-}): Promise<AffiliateLinkResult[]> {
+}): Promise<AffiliateLinksForPartnerResult> {
   const email = opts.email.trim().toLowerCase()
   const db = createServiceSupabaseClient() as any
 
@@ -37,7 +45,7 @@ export async function createAffiliateLinksForPartner(opts: {
     const commission_rate = opts.commissionRate != null && !isNaN(opts.commissionRate) ? opts.commissionRate : 0
     const { data: created, error } = await db.from('affiliates')
       .insert({ name: opts.partnerName || email, email, commission_rate }).select('id, name, email').single()
-    if (error) return [{ product: 'account', error: `Failed to create affiliate: ${error.message}` }]
+    if (error) return { affiliateName: opts.partnerName || email, results: [{ product: 'account', error: `Failed to create affiliate: ${error.message}` }] }
     affiliate = created
   }
 
@@ -71,5 +79,5 @@ export async function createAffiliateLinksForPartner(opts: {
 
   const results: AffiliateLinkResult[] = []
   for (const ref of opts.productRefs) results.push(await createOneLink(ref))
-  return results
+  return { affiliateName: affiliate.name || email, results }
 }

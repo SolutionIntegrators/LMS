@@ -62,6 +62,10 @@ export const branding = {
     // is unused for navigation. Kept around as a record of the original
     // external application form.
     affiliate: 'https://airtable.com/appCDKeRL8J1xVmuO/pagRazEh4rj7XTsKp/form',
+    // Shared invite to the Airtable partner interface, where an affiliate can
+    // see all of their tracking links + stats in one place. Referenced from
+    // the "your link is ready" email sent on every new link.
+    partnerPortal: 'https://airtable.com/invite/l?inviteId=invnIzEeDiGnZDGAd&inviteToken=afb4c008d12f6858041c6d1cd96e5b6668d350be46e55c31a067e21165bc4ec4&utm_medium=email&utm_source=product_team&utm_content=transactional-alerts',
     shop: 'https://solutionintegrators.us/shop',
     shopLabel: 'Want more goodies? Visit the shop →',
     offers: 'https://solutionintegrators.us/service-guide',

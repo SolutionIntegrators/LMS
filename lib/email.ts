@@ -215,7 +215,33 @@ export async function sendAffiliateWelcomeEmail(opts: {
     <p style="margin:0 0 14px;">You’re all set up as a ${branding.company} partner. 🎉 Here’s your personal referral link — share it anywhere, and every click is tracked to you:</p>
     <p style="margin:18px 0;background:#FCF1E8;border-radius:8px;padding:12px 16px;word-break:break-all;"><a href="${opts.link}" style="color:#A34F2B;font-weight:600;text-decoration:none;">${opts.link}</a></p>
     <p style="margin:0 0 14px;">${button(opts.link, 'Test your link')}</p>
-    <p style="margin:14px 0 0;color:#7A8A95;font-size:13px;">Your link (and referral stats) also live in your partner hub.</p>
+    <p style="margin:14px 0 0;color:#7A8A95;font-size:13px;">Reminder: you can see all of your tracking links and stats anytime in your <a href="${branding.links.partnerPortal}" style="color:#A34F2B;">Partner Portal</a>.</p>
   `)
   await sendEmail(opts.to, `Your ${branding.company} referral link is ready`, html)
+}
+
+// Sent to an affiliate/partner for self-service link requests — batched to
+// one email per partner per processing run (rather than one email per link),
+// since a partner can request several products' links at once. See
+// /api/cron/sync-link-requests and /api/affiliate/create-link.
+export async function sendAffiliateLinksEmail(opts: {
+  to: string
+  name?: string | null
+  links: Array<{ product: string; url: string }>
+}): Promise<void> {
+  if (opts.links.length === 0) return
+  const hi = opts.name ? `Hi ${opts.name},` : 'Hi there,'
+  const plural = opts.links.length > 1
+  const linksHtml = opts.links.map((l) => `
+    <p style="margin:0 0 4px;font-weight:600;">${escapeHtml(l.product)}</p>
+    <p style="margin:0 0 16px;background:#FCF1E8;border-radius:8px;padding:12px 16px;word-break:break-all;"><a href="${l.url}" style="color:#A34F2B;font-weight:600;text-decoration:none;">${l.url}</a></p>
+  `).join('')
+  const html = shell(`
+    <p style="margin:0 0 14px;">${hi}</p>
+    <p style="margin:0 0 14px;">You’re all set up as a ${branding.company} partner. 🎉 Here ${plural ? 'are your personal referral links' : "'s your personal referral link"} — share ${plural ? 'them' : 'it'} anywhere, and every click is tracked to you:</p>
+    ${linksHtml}
+    <p style="margin:14px 0 0;color:#7A8A95;font-size:13px;">Reminder: you can see all of your tracking links and stats anytime in your <a href="${branding.links.partnerPortal}" style="color:#A34F2B;">Partner Portal</a>.</p>
+  `)
+  const subject = plural ? `Your ${branding.company} referral links are ready` : `Your ${branding.company} referral link is ready`
+  await sendEmail(opts.to, subject, html)
 }
