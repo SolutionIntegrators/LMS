@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { createAffiliate, deleteAffiliate, createAffiliateLink, toggleLink, deleteLink } from '@/app/admin/affiliates/actions'
+import { createAffiliate, deleteAffiliate, updateAffiliateCommission, createAffiliateLink, toggleLink, deleteLink } from '@/app/admin/affiliates/actions'
 import CopyLinkButton from '@/app/admin/affiliates/CopyLinkButton'
 
 export interface LmsUser {
@@ -164,8 +164,22 @@ export default function AffiliatesPane({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.875rem' }}>
               <div>
                 <div style={{ fontFamily: 'DM Sans, sans-serif', fontWeight: 700, fontSize: '1rem', color: 'var(--si-dark-text)' }}>{a.name}</div>
-                <div style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--si-muted)' }}>
-                  {a.email || 'no email'} · {a.commission_rate ?? 0}% commission
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', color: 'var(--si-muted)' }}>
+                  <span>{a.email || 'no email'} ·</span>
+                  <form action={updateAffiliateCommission} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <input
+                      name="commission_rate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      defaultValue={a.commission_rate ?? 0}
+                      style={{ width: 52, border: '1px solid var(--si-border)', borderRadius: 4, padding: '0.15rem 0.35rem', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--si-dark-text)', background: 'var(--si-white)' }}
+                    />
+                    <span>% commission</span>
+                    <button type="submit" style={{ ...btnSm, padding: '0.15rem 0.4rem', fontSize: '0.68rem' }}>Save</button>
+                  </form>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>

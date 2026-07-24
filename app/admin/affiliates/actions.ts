@@ -34,6 +34,18 @@ export async function createAffiliate(formData: FormData) {
   revalidatePath('/admin/people')
 }
 
+export async function updateAffiliateCommission(formData: FormData) {
+  const db = await getAdminClient()
+  const id = formData.get('id') as string
+  const rateRaw = ((formData.get('commission_rate') as string) || '').trim()
+  const commission_rate = rateRaw ? Number(rateRaw) : 0
+  if (isNaN(commission_rate) || commission_rate < 0 || commission_rate > 100) throw new Error('Commission rate must be 0–100')
+
+  const { error } = await (db as any).from('affiliates').update({ commission_rate }).eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/people')
+}
+
 export async function deleteAffiliate(formData: FormData) {
   const db = await getAdminClient()
   const id = formData.get('id') as string
