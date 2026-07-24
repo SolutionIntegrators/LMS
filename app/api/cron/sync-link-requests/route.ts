@@ -2,6 +2,7 @@ export const runtime = 'edge'
 
 import { listPendingLinkRequests, getPartnerContact, updateLinkRequestResult } from '@/lib/airtable'
 import { createAffiliateLinksForPartner } from '@/lib/affiliate-links'
+import { sendAffiliateLinksEmail } from '@/lib/email'
 
 // Polls Airtable's "Link Requests" table for partner self-service link
 // requests and creates the matching tracking link(s) — no Airtable-side
@@ -20,6 +21,11 @@ export async function GET(request: Request): Promise<Response> {
   const pending = await listPendingLinkRequests()
   let processed = 0
 
+  // Batched per partner across this whole run — if the same partner has
+  // multiple pending requests (or one request spans several products), they
+  // get ONE email covering everything created this run, not one per link.
+  const newLinksByEmail = new Map<string, { name: string; links: Array<{ product: string; url: string }> }>()
+
   for (const req of pending) {
     if (!req.partnerRecordId) {
       await updateLinkRequestResult(req.id, { createdLinkText: 'No partner linked on this request.', status: 'Error' })
@@ -35,7 +41,7 @@ export async function GET(request: Request): Promise<Response> {
       continue
     }
 
-    const results = await createAffiliateLinksForPartner({
+    const { affiliateName, results } = await createAffiliateLinksForPartner({
       email: partner.email,
       partnerName: partner.name,
       productRefs: req.productNames,
@@ -44,7 +50,19 @@ export async function GET(request: Request): Promise<Response> {
     const anyFailed = results.some((r) => r.error)
     await updateLinkRequestResult(req.id, { createdLinkText: lines.join('\n'), status: anyFailed ? 'Error' : 'Created' })
     processed++
+
+    const newLinks = results.filter((r) => r.link && !r.existed && !r.error)
+    if (newLinks.length > 0) {
+      const email = partner.email.trim().toLowerCase()
+      const entry = newLinksByEmail.get(email) ?? { name: affiliateName, links: [] }
+      entry.links.push(...newLinks.map((r) => ({ product: r.product, url: r.link! })))
+      newLinksByEmail.set(email, entry)
+    }
   }
 
-  return Response.json({ ok: true, pending: pending.length, processed })
+  for (const [email, entry] of newLinksByEmail) {
+    await sendAffiliateLinksEmail({ to: email, name: entry.name, links: entry.links })
+  }
+
+  return Response.json({ ok: true, pending: pending.length, processed, emailed: newLinksByEmail.size })
 }

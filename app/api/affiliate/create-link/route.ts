@@ -1,6 +1,7 @@
 export const runtime = 'edge'
 
 import { createAffiliateLinksForPartner } from '@/lib/affiliate-links'
+import { sendAffiliateLinksEmail } from '@/lib/email'
 
 // Self-service affiliate link creation, callable by any external automation
 // (Zapier/Make, a script, etc.) when a partner requests a link. Auth:
@@ -46,12 +47,19 @@ export async function POST(request: Request): Promise<Response> {
   if (!email) return new Response(JSON.stringify({ error: 'partner_email is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
   if (productRefs.length === 0) return new Response(JSON.stringify({ error: 'product(s) required' }), { status: 400, headers: { 'Content-Type': 'application/json' } })
 
-  const results = await createAffiliateLinksForPartner({
+  const { affiliateName, results } = await createAffiliateLinksForPartner({
     email,
     partnerName,
     commissionRate: commissionRaw && !isNaN(Number(commissionRaw)) ? Number(commissionRaw) : null,
     productRefs,
   })
+
+  // One email covering every link genuinely created by this request (not
+  // ones just idempotently reused), rather than one email per link.
+  const newLinks = results.filter((r) => r.link && !r.existed && !r.error)
+  if (newLinks.length > 0) {
+    await sendAffiliateLinksEmail({ to: email, name: affiliateName, links: newLinks.map((r) => ({ product: r.product, url: r.link! })) })
+  }
 
   return Response.json({ ok: true, results })
 }
